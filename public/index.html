@@ -84,12 +84,12 @@ body {
 .travel-decoration {
   position: absolute;
   top: 50%;
-  right: 10px;
+  right: 12px;
   transform: translateY(-50%);
-  width: 160px;
-  height: 60px;
+  width: 200px;
+  height: 80px;
   pointer-events: none;
-  opacity: 0.12;
+  opacity: 0.18;
   z-index: 0;
 }
 .header > .logo,
@@ -98,10 +98,10 @@ body {
   z-index: 1;
 }
 @media (max-width: 380px) {
-  .travel-decoration { width: 130px; right: 5px; }
+  .travel-decoration { width: 150px; right: 5px; opacity: 0.15; }
 }
 @media (max-width: 320px) {
-  .travel-decoration { width: 110px; }
+  .travel-decoration { width: 120px; opacity: 0.12; }
 }
 .logo {
   display: flex;
@@ -752,13 +752,19 @@ body {
 <div class="app">
   <div class="header">
     <div class="travel-decoration" aria-hidden="true">
-      <svg viewBox="0 0 160 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <!-- dotted flight path -->
-        <path d="M0,48 C30,40 50,15 90,22 C120,28 130,42 148,28" stroke="#4EA7FF" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>
+        <path d="M5,62 C35,50 55,18 100,26 C140,33 155,52 175,32" stroke="#F26A3D" stroke-width="2.5" stroke-dasharray="6 5" stroke-linecap="round" opacity="0.7"/>
+        <!-- waypoint dots -->
+        <circle cx="5" cy="62" r="3" fill="#1C8C7A" opacity="0.6"/>
+        <circle cx="100" cy="26" r="2.5" fill="#F26A3D" opacity="0.5"/>
         <!-- airplane -->
-        <g transform="translate(142,14) rotate(-30) scale(0.32)">
-          <path d="M0 34 L92 0 C98-2 104 4 101 10 L79 52 L112 72 C116 74 114 82 109 81 L67 71 L54 108 C52 114 43 114 41 108 L34 80 L10 92 C5 94 0 90 2 84 L18 55 L2 45 C-3 42-2 36 0 34Z" fill="#4EA7FF"/>
+        <g transform="translate(168,18) rotate(-35) scale(0.45)">
+          <path d="M0 34 L92 0 C98-2 104 4 101 10 L79 52 L112 72 C116 74 114 82 109 81 L67 71 L54 108 C52 114 43 114 41 108 L34 80 L10 92 C5 94 0 90 2 84 L18 55 L2 45 C-3 42-2 36 0 34Z" fill="#F26A3D"/>
         </g>
+        <!-- wake lines -->
+        <line x1="162" y1="38" x2="155" y2="42" stroke="#F26A3D" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
+        <line x1="158" y1="43" x2="151" y2="47" stroke="#F26A3D" stroke-width="1.5" opacity="0.3" stroke-linecap="round"/>
       </svg>
     </div>
     <div class="logo">
