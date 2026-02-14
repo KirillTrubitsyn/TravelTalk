@@ -1,4 +1,4 @@
-const CACHE_NAME = 'traveltalk-v3';
+const CACHE_NAME = 'traveltalk-v4';
 const ASSETS = [
   '/',
   '/index.html',
