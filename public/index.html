@@ -216,6 +216,9 @@ body::before {
 }
 .icon-btn:hover { color: var(--text); border-color: var(--border-light); }
 .icon-btn svg { width: 16px; height: 16px; }
+.icon-btn.speaking, .msg-play.speaking { pointer-events: none; color: var(--accent); border-color: var(--accent); }
+.icon-btn.speaking svg, .msg-play.speaking svg { animation: pulse-speak 0.8s ease-in-out infinite; }
+@keyframes pulse-speak { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
 
 /* ===== PHOTO PANEL ===== */
 .photo-zone {
@@ -471,7 +474,7 @@ body::before {
           <button class="icon-btn" onclick="copyResult('textResultText')" title="Копировать">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
-          <button class="icon-btn" onclick="speakResult('textResultText')" title="Озвучить">
+          <button class="icon-btn" onclick="speakResult('textResultText', this)" title="Озвучить">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
         </div>
@@ -506,7 +509,7 @@ body::before {
           <button class="icon-btn" onclick="copyResult('photoTransText')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
-          <button class="icon-btn" onclick="speakResult('photoTransText')">
+          <button class="icon-btn" onclick="speakResult('photoTransText', this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
           </button>
         </div>
@@ -528,7 +531,7 @@ body::before {
             <button class="icon-btn" onclick="copyResult('voiceResultText')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
-            <button class="icon-btn" onclick="speakResult('voiceResultText')">
+            <button class="icon-btn" onclick="speakResult('voiceResultText', this)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
             </button>
           </div>
@@ -857,13 +860,16 @@ function addDialogMessage(text, langCode, autoPlay) {
   bubble.innerHTML =
     '<div class="msg-label">' + lang.flag + ' ' + lang.name + '</div>' +
     '<div class="msg-text">' + text + '</div>' +
-    '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\')">' +
+    '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\', this)">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
 
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
 
-  if (autoPlay && autoSpeak) speakText(text, lang.tts);
+  if (autoPlay && autoSpeak) {
+    const playBtn = bubble.querySelector('.msg-play');
+    speakText(text, lang.tts, playBtn);
+  }
 }
 
 function addLoadingBubble() {
@@ -962,27 +968,46 @@ function toggleDialogRecording() {
 
 // ===== TTS =====
 let currentAudio = null;
+const ttsCache = new Map();
 
-async function speakText(text, lang) {
+function clearSpeakingState() {
+  document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
+}
+
+async function speakText(text, lang, btn) {
   // Stop any currently playing audio
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
+  clearSpeakingState();
+  if (btn) btn.classList.add('speaking');
+
+  const cacheKey = text + '|' + voiceGender;
+
   try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice: voiceGender })
-    });
+    let url;
+    if (ttsCache.has(cacheKey)) {
+      url = ttsCache.get(cacheKey);
+    } else {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice: voiceGender })
+      });
 
-    if (!res.ok) throw new Error('TTS error');
+      if (!res.ok) throw new Error('TTS error');
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+      const blob = await res.blob();
+      url = URL.createObjectURL(blob);
+      ttsCache.set(cacheKey, url);
+    }
+
     currentAudio = new Audio(url);
-    currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; };
+    currentAudio.onended = () => { currentAudio = null; clearSpeakingState(); };
+    currentAudio.onerror = () => { currentAudio = null; clearSpeakingState(); };
     currentAudio.play();
   } catch (e) {
+    clearSpeakingState();
     // Fallback to browser TTS
     if ('speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance(text);
@@ -990,14 +1015,15 @@ async function speakText(text, lang) {
       const voices = window.speechSynthesis.getVoices();
       const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
       if (match) u.voice = match;
+      if (btn) { btn.classList.add('speaking'); u.onend = clearSpeakingState; }
       window.speechSynthesis.speak(u);
     }
   }
 }
 
-function speakResult(elementId) {
+function speakResult(elementId, btn) {
   const text = document.getElementById(elementId).textContent;
-  speakText(text, LANGS[targetLang].tts);
+  speakText(text, LANGS[targetLang].tts, btn);
 }
 
 if ('speechSynthesis' in window) {
