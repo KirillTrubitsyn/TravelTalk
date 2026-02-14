@@ -76,6 +76,16 @@ body::before {
 }
 .logo-text { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
 .logo-text span { color: var(--accent-2); }
+.voice-gender-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-dim); font-family: var(--font); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.2s;
+}
+.voice-gender-btn:hover { background: var(--surface-2); color: var(--text); }
+.voice-gender-btn.male { border-color: var(--accent-2); color: var(--accent-2); }
+.voice-gender-btn.female { border-color: var(--accent); color: var(--accent); }
 .btn {
   flex: 1; padding: 11px 16px; border-radius: var(--radius-sm); border: none;
   font-family: var(--font); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
@@ -394,7 +404,10 @@ body::before {
       <div class="logo-icon">✈</div>
       <div class="logo-text">Travel<span>Talk</span></div>
     </div>
-    <div style="width:40px"></div>
+    <button class="voice-gender-btn" id="voiceGenderBtn" onclick="toggleVoiceGender()" title="Сменить голос">
+      <svg id="voiceGenderIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+      <span id="voiceGenderLabel">Жен</span>
+    </button>
   </div>
 
   <div class="tabs">
@@ -575,6 +588,7 @@ let voiceRecording = false;
 let dialogRecording = false;
 let recognition = null;
 let dialogFirstMessage = true;
+let voiceGender = localStorage.getItem('traveltalk_voice') || 'female';
 
 function getSourceName() { return LANG_NAMES_FOR_PROMPT[sourceLang]; }
 function getTargetName() { return LANG_NAMES_FOR_PROMPT[targetLang]; }
@@ -583,7 +597,22 @@ function getTargetName() { return LANG_NAMES_FOR_PROMPT[targetLang]; }
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   updateLangs();
+  updateVoiceGenderUI();
 });
+
+function toggleVoiceGender() {
+  voiceGender = voiceGender === 'female' ? 'male' : 'female';
+  localStorage.setItem('traveltalk_voice', voiceGender);
+  updateVoiceGenderUI();
+}
+
+function updateVoiceGenderUI() {
+  const btn = document.getElementById('voiceGenderBtn');
+  const label = document.getElementById('voiceGenderLabel');
+  btn.classList.remove('male', 'female');
+  btn.classList.add(voiceGender);
+  label.textContent = voiceGender === 'female' ? 'Жен' : 'Муж';
+}
 
 function initTabs() {
   document.querySelectorAll('.tab').forEach(tab => {
@@ -918,7 +947,7 @@ async function speakText(text, lang) {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, voice: voiceGender })
     });
 
     if (!res.ok) throw new Error('TTS error');
