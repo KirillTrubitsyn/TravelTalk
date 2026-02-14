@@ -647,20 +647,39 @@ function swapLangs() {
 }
 
 // ===== API =====
-async function callClaude(systemPrompt, userContent) {
+async function callClaude(systemPrompt, userContent, maxTokens) {
   const res = await fetch('/api/translate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       system: systemPrompt,
       content: userContent,
-      max_tokens: 1024
+      max_tokens: maxTokens || 1024
     })
   });
 
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'API error: ' + res.status);
   return data.text;
+}
+
+function getAutoTranslatePrompt() {
+  return 'You are a translator. The user has a language pair: ' + getSourceName() + ' and ' + getTargetName() + '. Auto-detect the language of the input text. If it is ' + getSourceName() + ', translate to ' + getTargetName() + '. If it is ' + getTargetName() + ', translate to ' + getSourceName() + '. If it is neither, translate to ' + getTargetName() + '. Reply ONLY in this JSON format: {"from":"LANG_CODE","text":"TRANSLATED_TEXT"} where LANG_CODE is one of: ' + Object.keys(LANGS).join(', ') + '. No markdown, no explanation.';
+}
+
+function parseTranslateResult(raw) {
+  try {
+    const json = JSON.parse(raw);
+    return { from: json.from, text: json.text };
+  } catch (e) {
+    return { from: sourceLang, text: raw };
+  }
+}
+
+function getOtherLang(detectedLang) {
+  if (detectedLang === sourceLang) return targetLang;
+  if (detectedLang === targetLang) return sourceLang;
+  return targetLang;
 }
 
 // ===== TEXT =====
@@ -676,12 +695,14 @@ async function translateText() {
   btn.disabled = true; btn.textContent = '...';
 
   try {
-    const result = await callClaude(
-      'You are a translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation, no explanations, no quotes. If the text is a single word, also provide a brief pronunciation hint in parentheses using the script of the target language.',
+    const raw = await callClaude(
+      getAutoTranslatePrompt() + ' If the text is a single word, also provide a brief pronunciation hint in parentheses using the script of the target language inside the "text" field.',
       text
     );
-    document.getElementById('textResultText').textContent = result;
-    document.getElementById('textResultLabel').textContent = LANGS[targetLang].name;
+    const r = parseTranslateResult(raw);
+    const toLang = getOtherLang(r.from);
+    document.getElementById('textResultText').textContent = r.text;
+    document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
   } catch (e) {
     showToast('Ошибка: ' + e.message);
@@ -798,11 +819,9 @@ function toggleVoiceRecording() {
 
     if (finalText.trim()) {
       try {
-        const result = await callClaude(
-          'You are a translator. Translate from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation.',
-          finalText.trim()
-        );
-        document.getElementById('voiceResultText').textContent = result;
+        const raw = await callClaude(getAutoTranslatePrompt(), finalText.trim());
+        const r = parseTranslateResult(raw);
+        document.getElementById('voiceResultText').textContent = r.text;
         document.getElementById('voiceResult').classList.add('visible');
       } catch (e) { showToast('Ошибка: ' + e.message); }
     }
@@ -868,16 +887,19 @@ async function sendDialog() {
   if (!text) return;
   input.value = '';
 
-  addDialogMessage(text, sourceLang, false);
   addLoadingBubble();
 
   try {
-    const result = await callClaude(
-      'You are a real-time translator for a live conversation. Translate from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation, nothing else. Be natural and conversational.',
+    const raw = await callClaude(
+      getAutoTranslatePrompt() + ' Be natural and conversational.',
       text
     );
+    const r = parseTranslateResult(raw);
+    const fromLang = r.from || sourceLang;
+    const toLang = getOtherLang(fromLang);
     removeLoadingBubble();
-    addDialogMessage(result, targetLang, true);
+    addDialogMessage(text, fromLang, false);
+    addDialogMessage(r.text, toLang, true);
   } catch (e) {
     removeLoadingBubble();
     showToast('Ошибка: ' + e.message);
@@ -909,16 +931,19 @@ function toggleDialogRecording() {
     mic.classList.remove('recording');
 
     if (finalText.trim()) {
-      addDialogMessage(finalText.trim(), sourceLang, false);
       addLoadingBubble();
 
       try {
-        const result = await callClaude(
-          'You are a real-time translator for a live conversation. Translate from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation, nothing else. Be natural and conversational.',
+        const raw = await callClaude(
+          getAutoTranslatePrompt() + ' Be natural and conversational.',
           finalText.trim()
         );
+        const r = parseTranslateResult(raw);
+        const fromLang = r.from || sourceLang;
+        const toLang = getOtherLang(fromLang);
         removeLoadingBubble();
-        addDialogMessage(result, targetLang, true);
+        addDialogMessage(finalText.trim(), fromLang, false);
+        addDialogMessage(r.text, toLang, true);
       } catch (e) {
         removeLoadingBubble();
         showToast('Ошибка: ' + e.message);
