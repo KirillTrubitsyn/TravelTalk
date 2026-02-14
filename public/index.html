@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1120">
+<title>TravelTalk</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b1120;
+  --surface: #111a2e;
+  --surface-2: #182240;
+  --border: #1e2d4a;
+  --border-light: #2a3f66;
+  --text: #e8edf5;
+  --text-dim: #8896ab;
+  --text-muted: #4a5a78;
+  --accent: #f59e0b;
+  --accent-glow: rgba(245, 158, 11, 0.12);
+  --accent-2: #06b6d4;
+  --accent-2-glow: rgba(6, 182, 212, 0.12);
+  --danger: #ef4444;
+  --danger-glow: rgba(239, 68, 68, 0.2);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font: 'DM Sans', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --shadow: 0 4px 24px rgba(0,0,0,0.35);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 25% 15%, rgba(245,158,11,0.03) 0%, transparent 50%),
+              radial-gradient(ellipse at 75% 85%, rgba(6,182,212,0.03) 0%, transparent 50%);
+  pointer-events: none; z-index: 0;
+}
+
+.app {
+  position: relative; z-index: 1;
+  max-width: 480px; margin: 0 auto;
+  min-height: 100dvh;
+  display: flex; flex-direction: column;
+}
+
+/* ===== HEADER ===== */
+.header {
+  padding: 16px 20px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; box-shadow: 0 2px 12px rgba(245,158,11,0.25);
+}
+.logo-text { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
+.logo-text span { color: var(--accent-2); }
+.settings-btn {
+  width: 40px; height: 40px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-dim); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
+}
+.settings-btn:hover { background: var(--surface-2); color: var(--text); }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px); z-index: 100;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px 24px;
+  width: 100%; max-width: 400px; box-shadow: var(--shadow);
+}
+.modal h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 16px; }
+.modal input {
+  width: 100%; padding: 12px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  outline: none; transition: border-color 0.2s;
+}
+.modal input:focus { border-color: var(--accent); }
+.modal input::placeholder { color: var(--text-muted); }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+.btn {
+  flex: 1; padding: 11px 16px; border-radius: var(--radius-sm); border: none;
+  font-family: var(--font); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+}
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-ghost { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); }
+
+/* ===== TABS ===== */
+.tabs { display: flex; padding: 0 20px; gap: 4px; margin-bottom: 14px; }
+.tab {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid transparent;
+  color: var(--text-dim); font-family: var(--font); font-size: 13px; font-weight: 500;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 6px; transition: all 0.25s;
+}
+.tab svg { width: 16px; height: 16px; }
+.tab.active {
+  background: var(--surface); border-color: var(--border);
+  color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.tab:not(.active):hover { color: var(--text); background: var(--surface-2); }
+
+/* ===== LANGUAGE SELECTOR ===== */
+.lang-bar {
+  display: flex; align-items: center; margin: 0 20px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 6px;
+}
+.lang-select {
+  flex: 1; padding: 10px 8px;
+  border-radius: var(--radius-sm); border: none;
+  background: transparent; color: var(--text);
+  font-family: var(--font); font-size: 13px; font-weight: 500;
+  cursor: pointer; outline: none;
+  appearance: none; -webkit-appearance: none;
+  text-align: center;
+}
+.lang-select option { background: var(--surface); color: var(--text); }
+
+.lang-select-wrap {
+  flex: 1; position: relative;
+}
+.lang-select-wrap::after {
+  content: '▾'; position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%); color: var(--text-muted); font-size: 11px;
+  pointer-events: none;
+}
+.lang-select-wrap.source .lang-select { color: var(--accent); }
+.lang-select-wrap.target .lang-select { color: var(--accent-2); }
+
+.lang-swap {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text-dim); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: all 0.3s;
+}
+.lang-swap:hover { color: var(--text); border-color: var(--border-light); transform: rotate(180deg); }
+
+/* ===== CONTENT ===== */
+.content {
+  flex: 1; padding: 0 20px;
+  display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px;
+}
+.panel { display: none; flex-direction: column; gap: 12px; flex: 1; }
+.panel.active { display: flex; }
+
+/* ===== TEXT PANEL ===== */
+.text-area-wrap {
+  position: relative; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; transition: border-color 0.2s;
+}
+.text-area-wrap:focus-within { border-color: var(--border-light); }
+.text-area-wrap textarea {
+  width: 100%; min-height: 130px; padding: 16px;
+  background: transparent; border: none; color: var(--text);
+  font-family: var(--font); font-size: 15px; line-height: 1.5;
+  resize: none; outline: none;
+}
+.text-area-wrap textarea::placeholder { color: var(--text-muted); }
+.text-actions {
+  display: flex; padding: 8px 12px;
+  justify-content: space-between; align-items: center;
+  border-top: 1px solid var(--border);
+}
+.char-count { font-size: 11px; font-family: var(--mono); color: var(--text-muted); }
+
+.translate-btn {
+  padding: 8px 20px; border-radius: 20px; border: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #000; font-family: var(--font); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 2px 12px rgba(245,158,11,0.2);
+}
+.translate-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.translate-btn:active { transform: translateY(0); }
+.translate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ===== RESULT CARD ===== */
+.result-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  display: none; flex-direction: column; gap: 10px;
+  animation: slideUp 0.3s ease;
+}
+.result-card.visible { display: flex; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.result-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--text-muted);
+}
+.result-text { font-size: 16px; line-height: 1.55; color: var(--text); }
+.result-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+.icon-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text-dim); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--border-light); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* ===== PHOTO PANEL ===== */
+.photo-zone {
+  background: var(--surface); border: 2px dashed var(--border);
+  border-radius: var(--radius); padding: 40px 20px;
+  text-align: center; cursor: pointer; transition: all 0.25s;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.photo-zone:hover { border-color: var(--border-light); background: var(--surface-2); }
+.photo-zone svg { width: 40px; height: 40px; color: var(--text-muted); }
+.photo-zone .photo-title { font-size: 15px; font-weight: 500; }
+.photo-zone .photo-sub { font-size: 12px; color: var(--text-muted); }
+
+.photo-preview {
+  display: none; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border); position: relative;
+}
+.photo-preview.visible { display: block; }
+.photo-preview img { width: 100%; max-height: 250px; object-fit: cover; display: block; }
+.photo-preview .photo-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0; padding: 12px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+/* ===== VOICE PANEL ===== */
+.voice-area {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 20px; padding: 20px 0; flex: 1; justify-content: center;
+}
+.mic-ring {
+  width: 120px; height: 120px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 2px solid var(--border);
+  cursor: pointer; transition: all 0.3s; position: relative;
+}
+.mic-ring::before {
+  content: ''; position: absolute; inset: -8px; border-radius: 50%;
+  border: 1px solid transparent; transition: all 0.3s;
+}
+.mic-ring:hover { border-color: var(--accent); }
+.mic-ring:hover::before { border-color: var(--accent-glow); }
+.mic-ring.recording {
+  border-color: var(--danger); background: var(--danger-glow);
+  animation: pulse 1.5s ease infinite;
+}
+.mic-ring.recording::before { border-color: rgba(239,68,68,0.15); }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
+  50% { box-shadow: 0 0 0 16px rgba(239,68,68,0); }
+}
+
+.mic-ring svg { width: 36px; height: 36px; color: var(--text-dim); transition: color 0.3s; }
+.mic-ring.recording svg { color: var(--danger); }
+
+.voice-status { font-size: 14px; color: var(--text-dim); text-align: center; }
+.voice-status.active { color: var(--danger); font-weight: 500; }
+
+.voice-transcript {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; font-size: 15px;
+  line-height: 1.5; display: none; min-height: 60px;
+}
+.voice-transcript.visible { display: block; }
+
+/* ===== DIALOG PANEL ===== */
+.dialog-area { display: flex; flex-direction: column; flex: 1; gap: 12px; }
+.dialog-messages {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+  gap: 10px; min-height: 200px; max-height: calc(100dvh - 380px); padding: 4px;
+}
+.msg-bubble {
+  max-width: 85%; padding: 12px 16px; border-radius: var(--radius);
+  font-size: 14px; line-height: 1.5; animation: slideUp 0.25s ease; position: relative;
+}
+.msg-source {
+  align-self: flex-start;
+  background: var(--accent-glow); border: 1px solid rgba(245,158,11,0.2);
+  border-bottom-left-radius: 4px;
+}
+.msg-target {
+  align-self: flex-end;
+  background: var(--accent-2-glow); border: 1px solid rgba(6,182,212,0.2);
+  border-bottom-right-radius: 4px;
+}
+.msg-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.6px; margin-bottom: 4px; opacity: 0.6;
+}
+.msg-source .msg-label { color: var(--accent); }
+.msg-target .msg-label { color: var(--accent-2); }
+.msg-text { color: var(--text); }
+
+.msg-play {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 28px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.1); color: var(--text-dim);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
+}
+.msg-play:hover { background: rgba(255,255,255,0.15); color: var(--text); }
+.msg-play svg { width: 14px; height: 14px; }
+
+.dialog-controls {
+  display: flex; gap: 10px; align-items: center; padding: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.dialog-mic {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--bg);
+  color: var(--text-dim); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: all 0.3s;
+}
+.dialog-mic:hover { border-color: var(--accent); color: var(--accent); }
+.dialog-mic.recording {
+  border-color: var(--danger); background: var(--danger-glow);
+  color: var(--danger); animation: pulse 1.5s ease infinite;
+}
+.dialog-mic svg { width: 22px; height: 22px; }
+
+.dialog-input {
+  flex: 1; padding: 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); font-family: var(--font); font-size: 14px; outline: none;
+}
+.dialog-input::placeholder { color: var(--text-muted); }
+.dialog-input:focus { border-color: var(--border-light); }
+
+.dialog-send {
+  width: 44px; height: 44px; border-radius: 50%; border: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #000; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+}
+.dialog-send:hover { filter: brightness(1.1); }
+.dialog-send svg { width: 18px; height: 18px; }
+
+.auto-speak { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.auto-speak label { font-size: 13px; color: var(--text-dim); cursor: pointer; }
+.toggle {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: var(--border); position: relative;
+  cursor: pointer; transition: background 0.3s; border: none;
+}
+.toggle.on { background: var(--accent-2); }
+.toggle::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: white; transition: transform 0.3s;
+}
+.toggle.on::after { transform: translateX(18px); }
+
+.loading-dots { display: inline-flex; gap: 4px; align-items: center; }
+.loading-dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-dim); animation: bounce 1.2s infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.toast {
+  position: fixed; bottom: 30px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 20px;
+  font-size: 13px; color: var(--text); box-shadow: var(--shadow);
+  opacity: 0; transition: all 0.3s; z-index: 200; pointer-events: none;
+}
+.toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">✈</div>
+      <div class="logo-text">Travel<span>Talk</span></div>
+    </div>
+    <button class="settings-btn" onclick="showApiModal()">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="text">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Текст
+    </button>
+    <button class="tab" data-tab="photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Фото
+    </button>
+    <button class="tab" data-tab="voice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+      Голос
+    </button>
+    <button class="tab" data-tab="dialog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Диалог
+    </button>
+  </div>
+
+  <div class="lang-bar">
+    <div class="lang-select-wrap source">
+      <select class="lang-select" id="langFrom" onchange="updateLangs()">
+        <option value="ru">🇷🇺 Русский</option>
+        <option value="pt-BR">🇧🇷 Português</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="de">🇩🇪 Deutsch</option>
+        <option value="fr">🇫🇷 Français</option>
+      </select>
+    </div>
+    <button class="lang-swap" onclick="swapLangs()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+    </button>
+    <div class="lang-select-wrap target">
+      <select class="lang-select" id="langTo" onchange="updateLangs()">
+        <option value="pt-BR">🇧🇷 Português</option>
+        <option value="ru">🇷🇺 Русский</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="de">🇩🇪 Deutsch</option>
+        <option value="fr">🇫🇷 Français</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- TEXT -->
+    <div class="panel active" id="panel-text">
+      <div class="text-area-wrap">
+        <textarea id="textInput" placeholder="Введите текст для перевода..." oninput="updateCharCount()"></textarea>
+        <div class="text-actions">
+          <span class="char-count" id="charCount">0</span>
+          <button class="translate-btn" onclick="translateText()">Перевести</button>
+        </div>
+      </div>
+      <div class="result-card" id="textResult">
+        <div class="result-label" id="textResultLabel">Перевод</div>
+        <div class="result-text" id="textResultText"></div>
+        <div class="result-actions">
+          <button class="icon-btn" onclick="copyResult('textResultText')" title="Копировать">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="icon-btn" onclick="speakResult('textResultText')" title="Озвучить">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHOTO -->
+    <div class="panel" id="panel-photo">
+      <div class="photo-zone" onclick="document.getElementById('photoInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <div class="photo-title">Сфотографировать или выбрать</div>
+        <div class="photo-sub">Вывеска, меню, документ</div>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
+      <div class="photo-preview" id="photoPreview">
+        <img id="photoImg" src="" alt="">
+        <div class="photo-overlay">
+          <button class="btn btn-primary" style="flex:none;padding:8px 16px;font-size:12px" onclick="translatePhoto()">Распознать и перевести</button>
+          <button class="icon-btn" onclick="clearPhoto()" style="background:rgba(0,0,0,0.5);border:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="result-card" id="photoOcrResult">
+        <div class="result-label">Распознанный текст</div>
+        <div class="result-text" id="photoOcrText"></div>
+      </div>
+      <div class="result-card" id="photoTransResult">
+        <div class="result-label">Перевод</div>
+        <div class="result-text" id="photoTransText"></div>
+        <div class="result-actions">
+          <button class="icon-btn" onclick="copyResult('photoTransText')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="icon-btn" onclick="speakResult('photoTransText')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VOICE -->
+    <div class="panel" id="panel-voice">
+      <div class="voice-area">
+        <div class="mic-ring" id="voiceMic" onclick="toggleVoiceRecording()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </div>
+        <div class="voice-status" id="voiceStatus">Нажмите для записи</div>
+        <div class="voice-transcript" id="voiceTranscript"></div>
+        <div class="result-card" id="voiceResult">
+          <div class="result-label">Перевод</div>
+          <div class="result-text" id="voiceResultText"></div>
+          <div class="result-actions">
+            <button class="icon-btn" onclick="copyResult('voiceResultText')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="icon-btn" onclick="speakResult('voiceResultText')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIALOG -->
+    <div class="panel" id="panel-dialog">
+      <div class="dialog-area">
+        <div class="auto-speak">
+          <button class="toggle on" id="autoSpeakToggle" onclick="toggleAutoSpeak()"></button>
+          <label onclick="toggleAutoSpeak()">Автоозвучка перевода</label>
+        </div>
+        <div class="dialog-messages" id="dialogMessages">
+          <div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:13px">
+            Нажмите на микрофон и произнесите фразу.<br>Перевод будет озвучен автоматически.
+          </div>
+        </div>
+        <div class="dialog-controls">
+          <button class="dialog-mic" id="dialogMic" onclick="toggleDialogRecording()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          </button>
+          <input class="dialog-input" id="dialogInput" placeholder="Или введите текст..." onkeydown="if(event.key==='Enter')sendDialog()">
+          <button class="dialog-send" onclick="sendDialog()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h3>API ключ Anthropic</h3>
+    <p>Для работы переводчика необходим ключ API Claude. Ключ хранится только на вашем устройстве и никуда не передается кроме серверов Anthropic.</p>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeApiModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== LANGUAGE CONFIG =====
+const LANGS = {
+  'ru':    { name: 'Русский',    flag: '🇷🇺', speech: 'ru-RU',  tts: 'ru-RU' },
+  'pt-BR': { name: 'Português',  flag: '🇧🇷', speech: 'pt-BR',  tts: 'pt-BR' },
+  'en':    { name: 'English',    flag: '🇬🇧', speech: 'en-US',  tts: 'en-US' },
+  'de':    { name: 'Deutsch',    flag: '🇩🇪', speech: 'de-DE',  tts: 'de-DE' },
+  'fr':    { name: 'Français',   flag: '🇫🇷', speech: 'fr-FR',  tts: 'fr-FR' }
+};
+
+const LANG_NAMES_FOR_PROMPT = {
+  'ru': 'Russian', 'pt-BR': 'Brazilian Portuguese',
+  'en': 'English', 'de': 'German', 'fr': 'French'
+};
+
+let sourceLang = 'ru';
+let targetLang = 'pt-BR';
+let autoSpeak = true;
+let voiceRecording = false;
+let dialogRecording = false;
+let recognition = null;
+let dialogFirstMessage = true;
+
+function getSourceName() { return LANG_NAMES_FOR_PROMPT[sourceLang]; }
+function getTargetName() { return LANG_NAMES_FOR_PROMPT[targetLang]; }
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  if (!localStorage.getItem('traveltalk_api_key')) showApiModal();
+  initTabs();
+  updateLangs();
+});
+
+function initTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+// ===== LANGUAGE =====
+function updateLangs() {
+  sourceLang = document.getElementById('langFrom').value;
+  targetLang = document.getElementById('langTo').value;
+  if (sourceLang === targetLang) {
+    const keys = Object.keys(LANGS);
+    const alt = keys.find(k => k !== sourceLang);
+    targetLang = alt;
+    document.getElementById('langTo').value = alt;
+  }
+}
+
+function swapLangs() {
+  const fromEl = document.getElementById('langFrom');
+  const toEl = document.getElementById('langTo');
+  const tmp = fromEl.value;
+  fromEl.value = toEl.value;
+  toEl.value = tmp;
+  updateLangs();
+}
+
+// ===== API =====
+function showApiModal() { document.getElementById('apiModal').classList.add('active'); }
+function closeApiModal() { document.getElementById('apiModal').classList.remove('active'); }
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (key) {
+    localStorage.setItem('traveltalk_api_key', key);
+    closeApiModal();
+    showToast('Ключ сохранен');
+  }
+}
+
+function getApiKey() {
+  const key = localStorage.getItem('traveltalk_api_key');
+  if (!key) { showApiModal(); return null; }
+  return key;
+}
+
+async function callClaude(systemPrompt, userContent) {
+  const key = getApiKey();
+  if (!key) throw new Error('No API key');
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || 'API error: ' + res.status);
+  }
+
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+// ===== TEXT =====
+function updateCharCount() {
+  document.getElementById('charCount').textContent = document.getElementById('textInput').value.length;
+}
+
+async function translateText() {
+  const text = document.getElementById('textInput').value.trim();
+  if (!text) return;
+
+  const btn = document.querySelector('.translate-btn');
+  btn.disabled = true; btn.textContent = '...';
+
+  try {
+    const result = await callClaude(
+      'You are a translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation, no explanations, no quotes. If the text is a single word, also provide a brief pronunciation hint in parentheses using the script of the target language.',
+      text
+    );
+    document.getElementById('textResultText').textContent = result;
+    document.getElementById('textResultLabel').textContent = LANGS[targetLang].name;
+    document.getElementById('textResult').classList.add('visible');
+  } catch (e) {
+    showToast('Ошибка: ' + e.message);
+  }
+
+  btn.disabled = false; btn.textContent = 'Перевести';
+}
+
+// ===== PHOTO =====
+function handlePhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('photoImg').src = ev.target.result;
+    document.getElementById('photoPreview').classList.add('visible');
+    document.querySelector('.photo-zone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto() {
+  document.getElementById('photoPreview').classList.remove('visible');
+  document.getElementById('photoOcrResult').classList.remove('visible');
+  document.getElementById('photoTransResult').classList.remove('visible');
+  document.querySelector('.photo-zone').style.display = 'flex';
+  document.getElementById('photoInput').value = '';
+}
+
+async function translatePhoto() {
+  const imgSrc = document.getElementById('photoImg').src;
+  if (!imgSrc) return;
+  showToast('Распознаю текст...');
+
+  try {
+    const base64 = imgSrc.split(',')[1];
+    const mediaType = imgSrc.split(';')[0].split(':')[1];
+    const key = getApiKey();
+    if (!key) return;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
+        system: 'You are an OCR and translation assistant. First, extract ALL visible text from the image. Then translate it to ' + getTargetName() + '. Detect the source language automatically. Format your response as:\nOCR: [extracted text]\nTRANSLATION: [translated text]',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text', text: 'Extract text from this image and translate it to ' + getTargetName() + '.' }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content[0].text;
+    const ocrMatch = text.match(/OCR:\s*([\s\S]*?)(?=TRANSLATION:|$)/i);
+    const transMatch = text.match(/TRANSLATION:\s*([\s\S]*)/i);
+
+    if (ocrMatch) {
+      document.getElementById('photoOcrText').textContent = ocrMatch[1].trim();
+      document.getElementById('photoOcrResult').classList.add('visible');
+    }
+    if (transMatch) {
+      document.getElementById('photoTransText').textContent = transMatch[1].trim();
+      document.getElementById('photoTransResult').classList.add('visible');
+    }
+  } catch (e) {
+    showToast('Ошибка: ' + e.message);
+  }
+}
+
+// ===== SPEECH RECOGNITION =====
+function getSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Распознавание речи не поддерживается'); return null; }
+  const r = new SR();
+  r.continuous = false;
+  r.interimResults = true;
+  return r;
+}
+
+// ===== VOICE =====
+function toggleVoiceRecording() {
+  const mic = document.getElementById('voiceMic');
+  const status = document.getElementById('voiceStatus');
+
+  if (voiceRecording) { if (recognition) recognition.stop(); return; }
+
+  recognition = getSpeechRecognition();
+  if (!recognition) return;
+
+  recognition.lang = LANGS[sourceLang].speech;
+  voiceRecording = true;
+  mic.classList.add('recording');
+  status.textContent = 'Говорите...';
+  status.classList.add('active');
+
+  let finalText = '';
+
+  recognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    document.getElementById('voiceTranscript').textContent = finalText + interim;
+    document.getElementById('voiceTranscript').classList.add('visible');
+  };
+
+  recognition.onend = async () => {
+    voiceRecording = false;
+    mic.classList.remove('recording');
+    status.textContent = 'Нажмите для записи';
+    status.classList.remove('active');
+
+    if (finalText.trim()) {
+      try {
+        const result = await callClaude(
+          'You are a translator. Translate from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation.',
+          finalText.trim()
+        );
+        document.getElementById('voiceResultText').textContent = result;
+        document.getElementById('voiceResult').classList.add('visible');
+      } catch (e) { showToast('Ошибка: ' + e.message); }
+    }
+  };
+
+  recognition.onerror = (e) => {
+    voiceRecording = false;
+    mic.classList.remove('recording');
+    status.textContent = 'Ошибка: ' + e.error;
+    status.classList.remove('active');
+  };
+
+  recognition.start();
+}
+
+// ===== DIALOG =====
+function toggleAutoSpeak() {
+  autoSpeak = !autoSpeak;
+  document.getElementById('autoSpeakToggle').classList.toggle('on', autoSpeak);
+}
+
+function addDialogMessage(text, langCode, autoPlay) {
+  const container = document.getElementById('dialogMessages');
+  if (dialogFirstMessage) { container.innerHTML = ''; dialogFirstMessage = false; }
+
+  const lang = LANGS[langCode];
+  const isSource = (langCode === sourceLang);
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble ' + (isSource ? 'msg-source' : 'msg-target');
+
+  const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+
+  bubble.innerHTML =
+    '<div class="msg-label">' + lang.flag + ' ' + lang.name + '</div>' +
+    '<div class="msg-text">' + text + '</div>' +
+    '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\')">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
+
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+
+  if (autoPlay && autoSpeak) speakText(text, lang.tts);
+}
+
+function addLoadingBubble() {
+  const container = document.getElementById('dialogMessages');
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble msg-target';
+  bubble.id = 'loadingBubble';
+  bubble.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeLoadingBubble() {
+  const el = document.getElementById('loadingBubble');
+  if (el) el.remove();
+}
+
+async function sendDialog() {
+  const input = document.getElementById('dialogInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  addDialogMessage(text, sourceLang, false);
+  addLoadingBubble();
+
+  try {
+    const result = await callClaude(
+      'You are a real-time translator for a live conversation. Translate from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation, nothing else. Be natural and conversational.',
+      text
+    );
+    removeLoadingBubble();
+    addDialogMessage(result, targetLang, true);
+  } catch (e) {
+    removeLoadingBubble();
+    showToast('Ошибка: ' + e.message);
+  }
+}
+
+function toggleDialogRecording() {
+  const mic = document.getElementById('dialogMic');
+
+  if (dialogRecording) { if (recognition) recognition.stop(); return; }
+
+  recognition = getSpeechRecognition();
+  if (!recognition) return;
+
+  recognition.lang = LANGS[sourceLang].speech;
+  dialogRecording = true;
+  mic.classList.add('recording');
+
+  let finalText = '';
+
+  recognition.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+    }
+  };
+
+  recognition.onend = async () => {
+    dialogRecording = false;
+    mic.classList.remove('recording');
+
+    if (finalText.trim()) {
+      addDialogMessage(finalText.trim(), sourceLang, false);
+      addLoadingBubble();
+
+      try {
+        const result = await callClaude(
+          'You are a real-time translator for a live conversation. Translate from ' + getSourceName() + ' to ' + getTargetName() + '. Return ONLY the translation, nothing else. Be natural and conversational.',
+          finalText.trim()
+        );
+        removeLoadingBubble();
+        addDialogMessage(result, targetLang, true);
+      } catch (e) {
+        removeLoadingBubble();
+        showToast('Ошибка: ' + e.message);
+      }
+    }
+  };
+
+  recognition.onerror = (e) => {
+    dialogRecording = false;
+    mic.classList.remove('recording');
+    showToast('Ошибка записи: ' + e.error);
+  };
+
+  recognition.start();
+}
+
+// ===== TTS =====
+function speakText(text, lang) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    u.rate = 0.9;
+    const voices = window.speechSynthesis.getVoices();
+    const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+    if (match) u.voice = match;
+    window.speechSynthesis.speak(u);
+  }
+}
+
+function speakResult(elementId) {
+  const text = document.getElementById(elementId).textContent;
+  speakText(text, LANGS[targetLang].tts);
+}
+
+if ('speechSynthesis' in window) {
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+}
+
+// ===== UTILS =====
+function copyResult(elementId) {
+  const text = document.getElementById(elementId).textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Скопировано'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 2500);
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
