@@ -907,16 +907,37 @@ function toggleDialogRecording() {
 }
 
 // ===== TTS =====
-function speakText(text, lang) {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang;
-    u.rate = 0.9;
-    const voices = window.speechSynthesis.getVoices();
-    const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-    if (match) u.voice = match;
-    window.speechSynthesis.speak(u);
+let currentAudio = null;
+
+async function speakText(text, lang) {
+  // Stop any currently playing audio
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+
+    if (!res.ok) throw new Error('TTS error');
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; };
+    currentAudio.play();
+  } catch (e) {
+    // Fallback to browser TTS
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang; u.rate = 0.9;
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+      if (match) u.voice = match;
+      window.speechSynthesis.speak(u);
+    }
   }
 }
 
