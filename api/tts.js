@@ -8,12 +8,16 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'ElevenLabs API key not configured' });
   }
 
-  const { text } = req.body;
+  const { text, voice } = req.body;
   if (!text) {
     return res.status(400).json({ error: 'Text is required' });
   }
 
-  const voiceId = '21m00Tcm4TlvDq8ikWAM'; // Rachel — multilingual
+  const voices = {
+    female: '21m00Tcm4TlvDq8ikWAM', // Rachel
+    male: 'pNInz6obpgDQGcFmaJgB'     // Adam
+  };
+  const voiceId = voices[voice] || voices.female;
 
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -27,7 +31,8 @@ export default async function handler(req, res) {
         model_id: 'eleven_multilingual_v2',
         voice_settings: {
           stability: 0.5,
-          similarity_boost: 0.75
+          similarity_boost: 0.75,
+          speed: 0.85
         }
       })
     });
