@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="disk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F26A3D"/>
+      <stop offset="100%" stop-color="#1C8C7A"/>
+    </linearGradient>
+    <clipPath id="rounded">
+      <rect width="1024" height="1024" rx="228" ry="228"/>
+    </clipPath>
+  </defs>
+  <!-- Rounded square background -->
+  <g clip-path="url(#rounded)">
+    <rect width="1024" height="1024" fill="#FFF9F2"/>
+  </g>
+  <!-- Center circle with gradient -->
+  <circle cx="512" cy="512" r="320" fill="url(#disk)"/>
+  <!-- White "T" letter -->
+  <path d="M380 340 h264 v56 h-100 v288 h-64 V396 H380 Z" fill="#FFFFFF"/>
+  <!-- Subtle arc route -->
+  <path d="M430 620 Q512 700 594 620" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="594" cy="620" r="8" fill="rgba(255,255,255,0.6)"/>
+</svg>
