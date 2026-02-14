@@ -82,12 +82,12 @@ body {
 /* ===== TRAVEL DECORATION ===== */
 .travel-decoration {
   position: absolute;
-  top: 6px;
-  right: -14px;
-  width: 200px;
-  height: 100px;
+  top: -2px;
+  right: -10px;
+  width: 220px;
+  height: 110px;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 1;
   z-index: 0;
 }
 .header > .logo,
@@ -96,7 +96,7 @@ body {
   z-index: 1;
 }
 @media (max-width: 380px) {
-  .travel-decoration { width: 150px; opacity: 0.4; right: -20px; }
+  .travel-decoration { width: 160px; opacity: 0.7; right: -16px; }
 }
 @media (max-width: 320px) {
   .travel-decoration { display: none; }
@@ -747,12 +747,16 @@ body {
 <div class="app">
   <div class="header">
     <div class="travel-decoration" aria-hidden="true">
-      <svg viewBox="0 0 300 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8,110 C60,85 100,25 160,35 C220,45 240,90 290,55" stroke="#F26A3D" stroke-width="1.8" stroke-dasharray="5 5" stroke-linecap="round" opacity="0.22"/>
-        <circle cx="160" cy="35" r="2.5" fill="#F26A3D" opacity="0.3"/>
-        <circle cx="290" cy="55" r="2.5" fill="#1C8C7A" opacity="0.3"/>
-        <g transform="translate(248,50) rotate(-28)">
-          <path d="M0,6 L3,0 L4.5,5 L12,4.5 L4.5,6 L5,8 L4,7 L3,12 L2.5,7 L1.5,8 L1,6 Z" fill="#1C8C7A" opacity="0.4"/>
+      <svg viewBox="0 0 300 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- dotted flight path -->
+        <path d="M10,95 C50,80 80,30 140,35 C200,40 220,75 265,45" stroke="#F26A3D" stroke-width="1.6" stroke-dasharray="4 4" stroke-linecap="round" opacity="0.3"/>
+        <!-- waypoint dots -->
+        <circle cx="10" cy="95" r="2.5" fill="#F26A3D" opacity="0.35"/>
+        <circle cx="140" cy="35" r="2" fill="#F26A3D" opacity="0.25"/>
+        <!-- airplane silhouette -->
+        <g transform="translate(258,38) rotate(-32)">
+          <path d="M0,8.5 L2.5,0 L5,6.5 L16,5 L5,8.5 L16,12 L5,10.5 L2.5,17 L0,8.5Z" fill="#1C8C7A" opacity="0.55"/>
+          <path d="M3.5,7 L3.5,10" stroke="#1C8C7A" stroke-width="0.5" opacity="0.3"/>
         </g>
       </svg>
     </div>
