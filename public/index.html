@@ -728,6 +728,107 @@ body {
 }
 .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ===== STOP BUTTON ===== */
+.stop-btn {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r16);
+  border: 2px solid var(--danger);
+  background: rgba(239,68,68,0.08);
+  color: var(--danger);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+.stop-btn.visible { display: inline-flex; }
+.stop-btn:hover {
+  background: rgba(239,68,68,0.15);
+  box-shadow: 0 2px 8px rgba(239,68,68,0.2);
+}
+.stop-btn:active { transform: translateY(1px); }
+.stop-btn svg { width: 16px; height: 16px; }
+
+/* ===== FILE UPLOAD PANEL ===== */
+.file-zone {
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--r20);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.file-zone:hover {
+  border-color: var(--sea);
+  background: var(--surfaceAlt);
+}
+.file-zone.dragover {
+  border-color: var(--terracotta);
+  background: rgba(242,106,61,0.06);
+}
+.file-zone svg { width: 40px; height: 40px; color: var(--muted); }
+.file-zone .file-title { font-size: 15px; font-weight: 500; color: var(--text); }
+.file-zone .file-sub { font-size: 12px; color: var(--muted); }
+.file-zone .file-formats { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.file-info {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r20);
+  padding: 16px 20px;
+  box-shadow: var(--shadowMd);
+  gap: 12px;
+  flex-direction: column;
+}
+.file-info.visible { display: flex; }
+.file-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.file-info-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-info-name svg { width: 18px; height: 18px; color: var(--sea); flex-shrink: 0; }
+.file-info-size {
+  font-size: 11px;
+  color: var(--muted);
+}
+.file-info-actions {
+  display: flex;
+  gap: 8px;
+}
+.file-content-preview {
+  display: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r12);
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.file-content-preview.visible { display: block; }
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -768,6 +869,10 @@ body {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       Диалог
     </button>
+    <button class="tab" data-tab="file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      Файл
+    </button>
   </div>
 
   <div class="lang-bar">
@@ -802,7 +907,13 @@ body {
         <textarea id="textInput" placeholder="Введите текст для перевода..." oninput="updateCharCount()"></textarea>
         <div class="text-actions">
           <span class="char-count" id="charCount">0</span>
-          <button class="translate-btn" onclick="translateText()">Перевести</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="stop-btn" id="textStopBtn" onclick="stopCurrentOperation()">
+              <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              Стоп
+            </button>
+            <button class="translate-btn" id="textTranslateBtn" onclick="translateText()">Перевести</button>
+          </div>
         </div>
       </div>
       <div class="result-card" id="textResult">
@@ -830,7 +941,11 @@ body {
       <div class="photo-preview" id="photoPreview">
         <img id="photoImg" src="" alt="">
         <div class="photo-overlay">
-          <button class="btn btn-primary" style="flex:none;padding:8px 16px;font-size:12px" onclick="translatePhoto()">Распознать и перевести</button>
+          <button class="btn btn-primary" id="photoTranslateBtn" style="flex:none;padding:8px 16px;font-size:12px" onclick="translatePhoto()">Распознать и перевести</button>
+          <button class="stop-btn" id="photoStopBtn" onclick="stopCurrentOperation()" style="height:36px;padding:0 12px;font-size:12px">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            Стоп
+          </button>
           <button class="icon-btn" onclick="clearPhoto()" style="background:rgba(0,0,0,0.5);border:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -873,6 +988,50 @@ body {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILE -->
+    <div class="panel" id="panel-file">
+      <div class="file-zone" id="fileZone" onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+        <div class="file-title">Загрузить файл для перевода</div>
+        <div class="file-sub">Перетащите файл сюда или нажмите</div>
+        <div class="file-formats">.txt, .html, .csv, .json, .md, .xml</div>
+      </div>
+      <input type="file" id="fileInput" accept=".txt,.text,.html,.htm,.csv,.json,.md,.markdown,.xml,.srt,.sub,.vtt,.log,.ini,.cfg,.yaml,.yml,.tsv" style="display:none" onchange="handleFileUpload(event)">
+      <div class="file-info" id="fileInfo">
+        <div class="file-info-header">
+          <div class="file-info-name">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <span id="fileName"></span>
+          </div>
+          <span class="file-info-size" id="fileSize"></span>
+        </div>
+        <div class="file-content-preview visible" id="filePreview"></div>
+        <div class="file-info-actions">
+          <button class="btn btn-primary" id="fileTranslateBtn" onclick="translateFile()" style="flex:1">Перевести файл</button>
+          <button class="stop-btn" id="fileStopBtn" onclick="stopCurrentOperation()">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            Стоп
+          </button>
+          <button class="btn btn-ghost" onclick="clearFile()" style="flex:none;padding:8px 16px">Убрать</button>
+        </div>
+      </div>
+      <div class="result-card" id="fileResult">
+        <div class="result-label" id="fileResultLabel">Перевод файла</div>
+        <div class="result-text" id="fileResultText" style="white-space:pre-wrap"></div>
+        <div class="result-actions">
+          <button class="icon-btn" onclick="copyResult('fileResultText')" title="Копировать">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="icon-btn" onclick="downloadTranslation()" title="Скачать перевод">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <button class="icon-btn" onclick="speakResult('fileResultText', this)" title="Озвучить">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          </button>
         </div>
       </div>
     </div>
@@ -988,8 +1147,8 @@ function swapLangs() {
 }
 
 // ===== API =====
-async function callClaude(systemPrompt, userContent, maxTokens) {
-  const res = await fetch('/api/translate', {
+async function callClaude(systemPrompt, userContent, maxTokens, signal) {
+  const opts = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -997,7 +1156,10 @@ async function callClaude(systemPrompt, userContent, maxTokens) {
       content: userContent,
       max_tokens: maxTokens || 1024
     })
-  });
+  };
+  if (signal) opts.signal = signal;
+
+  const res = await fetch('/api/translate', opts);
 
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'API error: ' + res.status);
@@ -1032,13 +1194,19 @@ async function translateText() {
   const text = document.getElementById('textInput').value.trim();
   if (!text) return;
 
-  const btn = document.querySelector('.translate-btn');
+  const btn = document.getElementById('textTranslateBtn');
+  const stopBtn = document.getElementById('textStopBtn');
   btn.disabled = true; btn.textContent = '...';
+  stopBtn.classList.add('visible');
+
+  currentAbortController = new AbortController();
 
   try {
     const raw = await callClaude(
       getAutoTranslatePrompt() + ' If the text is a single word, also provide a brief pronunciation hint in parentheses using the script of the target language inside the "text" field.',
-      text
+      text,
+      1024,
+      currentAbortController.signal
     );
     const r = parseTranslateResult(raw);
     const toLang = getOtherLang(r.from);
@@ -1046,10 +1214,14 @@ async function translateText() {
     document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
   } catch (e) {
-    showToast('Ошибка: ' + e.message);
+    if (e.name !== 'AbortError') {
+      showToast('Ошибка: ' + e.message);
+    }
   }
 
   btn.disabled = false; btn.textContent = 'Перевести';
+  stopBtn.classList.remove('visible');
+  currentAbortController = null;
 }
 
 // ===== PHOTO =====
@@ -1078,6 +1250,13 @@ async function translatePhoto() {
   if (!imgSrc) return;
   showToast('Распознаю текст...');
 
+  const photoBtn = document.getElementById('photoTranslateBtn');
+  const photoStopBtn = document.getElementById('photoStopBtn');
+  photoBtn.disabled = true; photoBtn.textContent = '...';
+  photoStopBtn.classList.add('visible');
+
+  currentAbortController = new AbortController();
+
   try {
     const base64 = imgSrc.split(',')[1];
     const mediaType = imgSrc.split(';')[0].split(':')[1];
@@ -1092,7 +1271,8 @@ async function translatePhoto() {
           { type: 'text', text: 'Extract text from this image and translate it to ' + getTargetName() + '.' }
         ],
         max_tokens: 2048
-      })
+      }),
+      signal: currentAbortController.signal
     });
 
     const data = await res.json();
@@ -1110,8 +1290,14 @@ async function translatePhoto() {
       document.getElementById('photoTransResult').classList.add('visible');
     }
   } catch (e) {
-    showToast('Ошибка: ' + e.message);
+    if (e.name !== 'AbortError') {
+      showToast('Ошибка: ' + e.message);
+    }
   }
+
+  photoBtn.disabled = false; photoBtn.textContent = 'Распознать и перевести';
+  photoStopBtn.classList.remove('visible');
+  currentAbortController = null;
 }
 
 // ===== SPEECH RECOGNITION =====
@@ -1159,12 +1345,16 @@ function toggleVoiceRecording() {
     status.classList.remove('active');
 
     if (finalText.trim()) {
+      currentAbortController = new AbortController();
       try {
-        const raw = await callClaude(getAutoTranslatePrompt(), finalText.trim());
+        const raw = await callClaude(getAutoTranslatePrompt(), finalText.trim(), 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
         document.getElementById('voiceResultText').textContent = r.text;
         document.getElementById('voiceResult').classList.add('visible');
-      } catch (e) { showToast('Ошибка: ' + e.message); }
+      } catch (e) {
+        if (e.name !== 'AbortError') { showToast('Ошибка: ' + e.message); }
+      }
+      currentAbortController = null;
     }
   };
 
@@ -1232,11 +1422,14 @@ async function sendDialog() {
   input.value = '';
 
   addLoadingBubble();
+  currentAbortController = new AbortController();
 
   try {
     const raw = await callClaude(
       getAutoTranslatePrompt() + ' Be natural and conversational.',
-      text
+      text,
+      1024,
+      currentAbortController.signal
     );
     const r = parseTranslateResult(raw);
     const fromLang = r.from || sourceLang;
@@ -1246,8 +1439,12 @@ async function sendDialog() {
     addDialogMessage(r.text, toLang, true);
   } catch (e) {
     removeLoadingBubble();
-    showToast('Ошибка: ' + e.message);
+    if (e.name !== 'AbortError') {
+      showToast('Ошибка: ' + e.message);
+    }
   }
+
+  currentAbortController = null;
 }
 
 function toggleDialogRecording() {
@@ -1276,11 +1473,14 @@ function toggleDialogRecording() {
 
     if (finalText.trim()) {
       addLoadingBubble();
+      currentAbortController = new AbortController();
 
       try {
         const raw = await callClaude(
           getAutoTranslatePrompt() + ' Be natural and conversational.',
-          finalText.trim()
+          finalText.trim(),
+          1024,
+          currentAbortController.signal
         );
         const r = parseTranslateResult(raw);
         const fromLang = r.from || sourceLang;
@@ -1290,8 +1490,12 @@ function toggleDialogRecording() {
         addDialogMessage(r.text, toLang, true);
       } catch (e) {
         removeLoadingBubble();
-        showToast('Ошибка: ' + e.message);
+        if (e.name !== 'AbortError') {
+          showToast('Ошибка: ' + e.message);
+        }
       }
+
+      currentAbortController = null;
     }
   };
 
@@ -1313,6 +1517,12 @@ function clearSpeakingState() {
 }
 
 async function speakText(text, lang, btn) {
+  // If same audio is playing, stop it (toggle behavior)
+  if (currentAudio && !currentAudio.paused) {
+    stopAudio();
+    return;
+  }
+
   // Stop any currently playing audio
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -1381,6 +1591,199 @@ function showToast(msg) {
   t.classList.add('visible');
   setTimeout(() => t.classList.remove('visible'), 2500);
 }
+
+// ===== ABORT CONTROLLER FOR STOPPING =====
+let currentAbortController = null;
+
+function stopCurrentOperation() {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+  stopAudio();
+  showToast('Остановлено');
+}
+
+function stopAudio() {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  clearSpeakingState();
+}
+
+// ===== FILE UPLOAD =====
+let uploadedFileContent = '';
+let uploadedFileName = '';
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' Б';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const maxSize = 100 * 1024; // 100KB limit for translation
+  if (file.size > maxSize) {
+    showToast('Файл слишком большой (макс. 100 КБ)');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    uploadedFileContent = ev.target.result;
+    uploadedFileName = file.name;
+
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = formatFileSize(file.size);
+
+    // Show preview (first 500 chars)
+    const preview = uploadedFileContent.substring(0, 500);
+    document.getElementById('filePreview').textContent = preview + (uploadedFileContent.length > 500 ? '...' : '');
+
+    document.getElementById('fileInfo').classList.add('visible');
+    document.getElementById('fileZone').style.display = 'none';
+    document.getElementById('fileResult').classList.remove('visible');
+  };
+  reader.readAsText(file);
+}
+
+function clearFile() {
+  uploadedFileContent = '';
+  uploadedFileName = '';
+  document.getElementById('fileInfo').classList.remove('visible');
+  document.getElementById('fileResult').classList.remove('visible');
+  document.getElementById('fileZone').style.display = 'flex';
+  document.getElementById('fileInput').value = '';
+}
+
+async function translateFile() {
+  if (!uploadedFileContent) return;
+
+  const btn = document.getElementById('fileTranslateBtn');
+  const stopBtn = document.getElementById('fileStopBtn');
+  btn.disabled = true;
+  btn.textContent = 'Перевожу...';
+  stopBtn.classList.add('visible');
+
+  currentAbortController = new AbortController();
+
+  // Split content into chunks if too long (max ~2000 chars per chunk for reliable translation)
+  const maxChunkSize = 2000;
+  const chunks = [];
+  let text = uploadedFileContent;
+
+  if (text.length <= maxChunkSize) {
+    chunks.push(text);
+  } else {
+    // Split by paragraphs/lines, keeping chunks under maxChunkSize
+    const lines = text.split('\n');
+    let current = '';
+    for (const line of lines) {
+      if (current.length + line.length + 1 > maxChunkSize && current.length > 0) {
+        chunks.push(current);
+        current = line;
+      } else {
+        current += (current ? '\n' : '') + line;
+      }
+    }
+    if (current) chunks.push(current);
+  }
+
+  const results = [];
+  try {
+    for (let i = 0; i < chunks.length; i++) {
+      if (currentAbortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+      if (chunks.length > 1) {
+        btn.textContent = 'Часть ' + (i + 1) + '/' + chunks.length + '...';
+      }
+
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system: 'You are a translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Keep the original formatting (line breaks, indentation, structure). Translate ONLY the text content, preserving any markup tags, code, or special characters. Reply with ONLY the translated text, no explanations.',
+          content: chunks[i],
+          max_tokens: 4096
+        }),
+        signal: currentAbortController.signal
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'API error: ' + res.status);
+      results.push(data.text);
+    }
+
+    document.getElementById('fileResultText').textContent = results.join('\n');
+    document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
+    document.getElementById('fileResult').classList.add('visible');
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      if (results.length > 0) {
+        document.getElementById('fileResultText').textContent = results.join('\n') + '\n\n[... перевод остановлен]';
+        document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name + ' (неполный)';
+        document.getElementById('fileResult').classList.add('visible');
+      }
+    } else {
+      showToast('Ошибка: ' + e.message);
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Перевести файл';
+  stopBtn.classList.remove('visible');
+  currentAbortController = null;
+}
+
+function downloadTranslation() {
+  const text = document.getElementById('fileResultText').textContent;
+  if (!text) return;
+
+  const ext = uploadedFileName.includes('.') ? uploadedFileName.substring(uploadedFileName.lastIndexOf('.')) : '.txt';
+  const baseName = uploadedFileName.includes('.') ? uploadedFileName.substring(0, uploadedFileName.lastIndexOf('.')) : uploadedFileName;
+  const newName = baseName + '_' + targetLang + ext;
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = newName;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Файл скачан');
+}
+
+// Drag and drop for file zone
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('fileZone');
+  if (!zone) return;
+
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  });
+  zone.addEventListener('dragleave', () => {
+    zone.classList.remove('dragover');
+  });
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      // Create a synthetic event for handleFileUpload
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      document.getElementById('fileInput').files = dt.files;
+      handleFileUpload({ target: { files: [file] } });
+    }
+  });
+});
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
