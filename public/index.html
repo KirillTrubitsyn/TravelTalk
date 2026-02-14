@@ -84,12 +84,12 @@ body {
 .travel-decoration {
   position: absolute;
   top: 50%;
-  right: 60px;
-  transform: translateY(-50%);
-  width: 120px;
-  height: 50px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+  height: 60px;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.7;
   z-index: 0;
 }
 .header > .logo,
@@ -98,10 +98,10 @@ body {
   z-index: 1;
 }
 @media (max-width: 380px) {
-  .travel-decoration { width: 100px; right: 45px; opacity: 0.45; }
+  .travel-decoration { width: 180px; opacity: 0.6; }
 }
 @media (max-width: 320px) {
-  .travel-decoration { width: 80px; right: 40px; opacity: 0.35; }
+  .travel-decoration { width: 150px; opacity: 0.5; }
 }
 .logo {
   display: flex;
@@ -752,13 +752,14 @@ body {
 <div class="app">
   <div class="header">
     <div class="travel-decoration" aria-hidden="true">
-      <svg viewBox="0 0 120 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 220 60" fill="none" xmlns="http://www.w3.org/2000/svg">
         <!-- dotted flight path -->
-        <path d="M0,40 C20,35 40,12 70,18 C90,22 100,35 110,20" stroke="#F26A3D" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" opacity="0.6"/>
-        <!-- airplane silhouette -->
-        <g transform="translate(105,10) rotate(-40) scale(0.35)">
-          <path d="M0 34 L92 0 C98-2 104 4 101 10 L79 52 L112 72 C116 74 114 82 109 81 L67 71 L54 108 C52 114 43 114 41 108 L34 80 L10 92 C5 94 0 90 2 84 L18 55 L2 45 C-3 42-2 36 0 34Z" fill="#F26A3D"/>
-        </g>
+        <path d="M10,48 Q60,42 90,25 T170,18" stroke="#F26A3D" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" opacity="0.5"/>
+        <!-- airplane -->
+        <path d="M175,8 l18,-6 c2,-0.5 3,1 2.5,2.5 l-5,10 8,5 c1,0.5 0.5,2.5 -1,2.5 l-10,-2 -3,9 c-0.5,1.5 -3,1.5 -3.5,0 l-2,-7 -6,3 c-1.2,0.5 -2.5,-0.5 -2,-2 l4,-7 -4,-2.5 c-1.2,-0.8 -1,-2 0.5,-2z" fill="#F26A3D" transform="rotate(-15, 185, 15)"/>
+        <!-- small dots along path -->
+        <circle cx="10" cy="48" r="2.5" fill="#1C8C7A" opacity="0.5"/>
+        <circle cx="90" cy="25" r="2" fill="#F26A3D" opacity="0.4"/>
       </svg>
     </div>
     <div class="logo">
