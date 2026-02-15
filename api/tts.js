@@ -3,59 +3,44 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'Gemini API key not configured' });
+    return res.status(500).json({ error: 'ElevenLabs API key not configured' });
   }
 
-  const { text, voice, lang } = req.body;
+  const { text, voice } = req.body;
   if (!text) {
     return res.status(400).json({ error: 'Text is required' });
   }
 
-  // Map voice gender to Gemini TTS voice names
-  // Kore = warm female voice, Puck = friendly male voice
+  // Map voice gender to ElevenLabs voice IDs
+  // Rachel = warm female voice, Adam = friendly male voice
   const voices = {
-    female: 'Kore',
-    male: 'Puck'
+    female: '21m00Tcm4TlvDq8ikWAM',
+    male: 'pNInz6obpgDQGcFmaJgB'
   };
-  const voiceName = voices[voice] || voices.female;
-
-  // Map BCP-47 language codes to language names for TTS prompt
-  const langNames = {
-    'ru-RU': 'Russian', 'en-US': 'English', 'de-DE': 'German',
-    'fr-FR': 'French', 'pt-BR': 'Brazilian Portuguese'
-  };
-  const ttsLang = lang || 'en-US';
-  const langName = langNames[ttsLang] || 'English';
+  const voiceId = voices[voice] || voices.female;
 
   // Strip parenthesized content (e.g. pronunciation hints) so TTS reads only the translation
   const cleanText = text.replace(/\s*\([^)]*\)/g, '').trim();
 
   try {
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
+          'xi-api-key': apiKey
         },
         body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: 'Say in ' + langName + ': ' + cleanText
-            }]
-          }],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: voiceName
-                }
-              }
-            }
+          text: cleanText,
+          model_id: 'eleven_turbo_v2_5',
+          output_format: 'mp3_22050_32',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+            speed: 0.85
           }
         })
       }
@@ -64,60 +49,18 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       return res.status(response.status).json({
-        error: err.error?.message || 'TTS error: ' + response.status
+        error: err.detail?.message || 'TTS error: ' + response.status
       });
     }
 
-    const data = await response.json();
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Extract base64 audio from Gemini response
-    const audioPart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (!audioPart) {
-      return res.status(500).json({ error: 'No audio in response' });
-    }
-
-    const pcmBase64 = audioPart.inlineData.data;
-    const pcmBuffer = Buffer.from(pcmBase64, 'base64');
-
-    // Gemini TTS outputs raw PCM: 24000 Hz, 16-bit, mono
-    // Wrap in WAV header so browsers can decode it
-    const wavBuffer = createWavBuffer(pcmBuffer, 24000, 1, 16);
-
-    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('Content-Length', wavBuffer.length);
-    res.end(wavBuffer);
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-}
-
-function createWavBuffer(pcmData, sampleRate, numChannels, bitsPerSample) {
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-  const blockAlign = numChannels * (bitsPerSample / 8);
-  const dataSize = pcmData.length;
-  const headerSize = 44;
-  const buffer = Buffer.alloc(headerSize + dataSize);
-
-  // RIFF header
-  buffer.write('RIFF', 0);
-  buffer.writeUInt32LE(36 + dataSize, 4);
-  buffer.write('WAVE', 8);
-
-  // fmt sub-chunk
-  buffer.write('fmt ', 12);
-  buffer.writeUInt32LE(16, 16);          // Sub-chunk size
-  buffer.writeUInt16LE(1, 20);           // Audio format (PCM)
-  buffer.writeUInt16LE(numChannels, 22);
-  buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(byteRate, 28);
-  buffer.writeUInt16LE(blockAlign, 32);
-  buffer.writeUInt16LE(bitsPerSample, 34);
-
-  // data sub-chunk
-  buffer.write('data', 36);
-  buffer.writeUInt32LE(dataSize, 40);
-  pcmData.copy(buffer, 44);
-
-  return buffer;
 }
