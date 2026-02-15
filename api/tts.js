@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -8,7 +8,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Gemini API key not configured' });
   }
 
-  const { text, voice, lang } = req.body;
+  const params = req.method === 'GET' ? req.query : (req.body || {});
+  const { text, voice, lang } = params;
   if (!text) {
     return res.status(400).json({ error: 'Text is required' });
   }
