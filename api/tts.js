@@ -21,7 +21,13 @@ export default async function handler(req, res) {
   };
   const voiceName = voices[voice] || voices.female;
 
+  // Map BCP-47 language codes to language names for TTS prompt
+  const langNames = {
+    'ru-RU': 'Russian', 'en-US': 'English', 'de-DE': 'German',
+    'fr-FR': 'French', 'pt-BR': 'Brazilian Portuguese'
+  };
   const ttsLang = lang || 'en-US';
+  const langName = langNames[ttsLang] || 'English';
 
   // Strip parenthesized content (e.g. pronunciation hints) so TTS reads only the translation
   const cleanText = text.replace(/\s*\([^)]*\)/g, '').trim();
@@ -38,13 +44,12 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: cleanText
+              text: 'Say in ' + langName + ': ' + cleanText
             }]
           }],
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
-              languageCode: ttsLang,
               voiceConfig: {
                 prebuiltVoiceConfig: {
                   voiceName: voiceName
