@@ -198,14 +198,13 @@ body {
 }
 .lang-flag {
   display: none;
-  font-size: 20px;
-  line-height: 1;
   padding-left: 10px;
   pointer-events: none;
   flex-shrink: 0;
+  line-height: 0;
 }
 @media (min-width: 480px) {
-  .lang-flag { display: block; }
+  .lang-flag { display: flex; align-items: center; }
 }
 .lang-select-wrap::after {
   content: '\25BE';
@@ -893,26 +892,26 @@ body {
 
   <div class="lang-bar">
     <div class="lang-select-wrap source">
-      <span class="lang-flag" id="langFromFlag">🇷🇺</span>
+      <span class="lang-flag" id="langFromFlag"></span>
       <select class="lang-select" id="langFrom" onchange="updateLangs()">
-        <option value="ru">🇷🇺 Русский</option>
-        <option value="pt-BR">🇧🇷 Português</option>
-        <option value="en">🇬🇧 English</option>
-        <option value="de">🇩🇪 Deutsch</option>
-        <option value="fr">🇫🇷 Français</option>
+        <option value="ru">Русский</option>
+        <option value="pt-BR">Português</option>
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+        <option value="fr">Français</option>
       </select>
     </div>
     <button class="lang-swap" onclick="swapLangs()">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
     </button>
     <div class="lang-select-wrap target">
-      <span class="lang-flag" id="langToFlag">🇧🇷</span>
+      <span class="lang-flag" id="langToFlag"></span>
       <select class="lang-select" id="langTo" onchange="updateLangs()">
-        <option value="pt-BR">🇧🇷 Português</option>
-        <option value="ru">🇷🇺 Русский</option>
-        <option value="en">🇬🇧 English</option>
-        <option value="de">🇩🇪 Deutsch</option>
-        <option value="fr">🇫🇷 Français</option>
+        <option value="pt-BR">Português</option>
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+        <option value="fr">Français</option>
       </select>
     </div>
   </div>
@@ -1093,12 +1092,16 @@ body {
 <script>
 // ===== LANGUAGE CONFIG =====
 const LANGS = {
-  'ru':    { name: 'Русский',    flag: '🇷🇺', speech: 'ru-RU',  tts: 'ru-RU' },
-  'pt-BR': { name: 'Português',  flag: '🇧🇷', speech: 'pt-BR',  tts: 'pt-BR' },
-  'en':    { name: 'English',    flag: '🇬🇧', speech: 'en-US',  tts: 'en-US' },
-  'de':    { name: 'Deutsch',    flag: '🇩🇪', speech: 'de-DE',  tts: 'de-DE' },
-  'fr':    { name: 'Français',   flag: '🇫🇷', speech: 'fr-FR',  tts: 'fr-FR' }
+  'ru':    { name: 'Русский',    flagCode: 'ru', speech: 'ru-RU',  tts: 'ru-RU' },
+  'pt-BR': { name: 'Português',  flagCode: 'br', speech: 'pt-BR',  tts: 'pt-BR' },
+  'en':    { name: 'English',    flagCode: 'gb', speech: 'en-US',  tts: 'en-US' },
+  'de':    { name: 'Deutsch',    flagCode: 'de', speech: 'de-DE',  tts: 'de-DE' },
+  'fr':    { name: 'Français',   flagCode: 'fr', speech: 'fr-FR',  tts: 'fr-FR' }
 };
+function flagImg(code, size) {
+  size = size || 20;
+  return '<img src="https://flagcdn.com/w40/' + code + '.png" width="' + size + '" height="' + Math.round(size * 0.75) + '" alt="" style="vertical-align:middle;border-radius:2px">';
+}
 
 const LANG_NAMES_FOR_PROMPT = {
   'ru': 'Russian', 'pt-BR': 'Brazilian Portuguese',
@@ -1159,8 +1162,8 @@ function updateLangs() {
     targetLang = alt;
     document.getElementById('langTo').value = alt;
   }
-  document.getElementById('langFromFlag').textContent = LANGS[sourceLang].flag;
-  document.getElementById('langToFlag').textContent = LANGS[targetLang].flag;
+  document.getElementById('langFromFlag').innerHTML = flagImg(LANGS[sourceLang].flagCode);
+  document.getElementById('langToFlag').innerHTML = flagImg(LANGS[targetLang].flagCode);
 }
 
 function swapLangs() {
@@ -1219,6 +1222,15 @@ function updateCharCount() {
 function handleTextFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
+
+  const binaryExts = ['.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.pdf', '.zip', '.rar', '.7z', '.gz', '.tar', '.exe', '.bin', '.odt', '.ods', '.epub'];
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  if (binaryExts.includes(ext)) {
+    showToast('Формат ' + ext + ' не поддерживается. Используйте текстовые файлы (.txt, .html, .csv, .md и т.д.)');
+    e.target.value = '';
+    return;
+  }
+
   const maxSize = 100 * 1024;
   if (file.size > maxSize) {
     showToast('Файл слишком большой (макс. 100 КБ)');
@@ -1227,11 +1239,22 @@ function handleTextFileUpload(e) {
   }
   const reader = new FileReader();
   reader.onload = (ev) => {
-    document.getElementById('textInput').value = ev.target.result;
+    const text = ev.target.result;
+    // Detect binary content (high ratio of non-printable characters)
+    let nonPrintable = 0;
+    for (let i = 0; i < Math.min(text.length, 1000); i++) {
+      const c = text.charCodeAt(i);
+      if (c < 32 && c !== 9 && c !== 10 && c !== 13) nonPrintable++;
+    }
+    if (nonPrintable > 20) {
+      showToast('Файл содержит бинарные данные. Используйте текстовые файлы.');
+      return;
+    }
+    document.getElementById('textInput').value = text;
     updateCharCount();
     showToast('Файл загружен: ' + file.name);
   };
-  reader.readAsText(file);
+  reader.readAsText(file, 'UTF-8');
   e.target.value = '';
 }
 
@@ -1431,7 +1454,7 @@ function addDialogMessage(text, langCode, autoPlay) {
   const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
 
   bubble.innerHTML =
-    '<div class="msg-label">' + lang.flag + ' ' + lang.name + '</div>' +
+    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + lang.name + '</div>' +
     '<div class="msg-text">' + text + '</div>' +
     '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\', this)">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
@@ -1673,6 +1696,13 @@ function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
 
+  const binaryExts = ['.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.pdf', '.zip', '.rar', '.7z', '.gz', '.tar', '.exe', '.bin', '.odt', '.ods', '.epub'];
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  if (binaryExts.includes(ext)) {
+    showToast('Формат ' + ext + ' не поддерживается. Используйте текстовые файлы.');
+    return;
+  }
+
   const maxSize = 100 * 1024; // 100KB limit for translation
   if (file.size > maxSize) {
     showToast('Файл слишком большой (макс. 100 КБ)');
@@ -1681,7 +1711,17 @@ function handleFileUpload(e) {
 
   const reader = new FileReader();
   reader.onload = (ev) => {
-    uploadedFileContent = ev.target.result;
+    const text = ev.target.result;
+    let nonPrintable = 0;
+    for (let i = 0; i < Math.min(text.length, 1000); i++) {
+      const c = text.charCodeAt(i);
+      if (c < 32 && c !== 9 && c !== 10 && c !== 13) nonPrintable++;
+    }
+    if (nonPrintable > 20) {
+      showToast('Файл содержит бинарные данные. Используйте текстовые файлы.');
+      return;
+    }
+    uploadedFileContent = text;
     uploadedFileName = file.name;
 
     document.getElementById('fileName').textContent = file.name;
@@ -1695,7 +1735,7 @@ function handleFileUpload(e) {
     document.getElementById('fileZone').style.display = 'none';
     document.getElementById('fileResult').classList.remove('visible');
   };
-  reader.readAsText(file);
+  reader.readAsText(file, 'UTF-8');
 }
 
 function clearFile() {
