@@ -1855,11 +1855,15 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let audioContext = null;
 let currentSource = null;
-let currentAudioEl = null;   // HTMLAudioElement currently playing (iOS path)
-let audioUnlocked = false;
 const ttsCache = new Map();
 let ttsAbortController = null;
 let ttsPlaying = false;
+
+// iOS: single persistent <audio> element, "blessed" by user-gesture play().
+// iOS Safari only allows programmatic .play() on an element that was already
+// played during a user gesture.  Creating new Audio() each time does NOT work.
+let iosAudio = null;
+let iosAudioPlaying = false;
 
 function getAudioContext() {
   if (!audioContext) {
@@ -1869,32 +1873,20 @@ function getAudioContext() {
 }
 
 // Unlock audio on first user gesture.
-// AudioContext must be resumed from a gesture on mobile.
-// On iOS, we also play a tiny silent Audio element so that future
-// programmatic HTMLAudioElement.play() calls work (needed for auto-speak).
+// On iOS we "bless" a persistent <audio> element so future .play() calls work.
 function unlockAudio() {
   const ctx = getAudioContext();
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-  if (!audioUnlocked && isIOS) {
-    // Push a silent buffer through AudioContext to fully initialise it
-    try {
-      const b = ctx.createBuffer(1, 1, 22050);
-      const s = ctx.createBufferSource();
-      s.buffer = b;
-      s.connect(ctx.destination);
-      s.start(0);
-    } catch (e) {}
-    // Unlock HTMLAudioElement for programmatic playback
-    try {
-      const a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
-      a.play().then(() => {
-        audioUnlocked = true;
-        console.log('[TTS] iOS audio unlocked');
-      }).catch(() => {});
-    } catch (e) {}
-  } else if (!audioUnlocked) {
-    audioUnlocked = true;
+  if (isIOS && !iosAudio) {
+    // Create the persistent element once and bless it with a user-gesture play
+    iosAudio = new Audio();
+    iosAudio.setAttribute('playsinline', '');
+    // Play a tiny silent WAV to bless the element
+    iosAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    iosAudio.play().then(() => {
+      console.log('[TTS] iOS audio element unlocked');
+    }).catch(() => {});
   }
 }
 document.addEventListener('click', unlockAudio);
@@ -1993,23 +1985,33 @@ function playBufferAsync(buffer, signal) {
   });
 }
 
-// iOS: play raw MP3 ArrayBuffer via HTMLAudioElement
+// iOS: play raw MP3 ArrayBuffer via the persistent "blessed" <audio> element.
+// Reuses the same element created in unlockAudio() so iOS allows .play().
 function playBufferIOS(arrayBuffer, signal) {
   return new Promise((resolve, reject) => {
     if (signal && signal.aborted) { reject(new Error('aborted')); return; }
+    // Ensure persistent element exists (fallback if unlockAudio hasn't fired)
+    if (!iosAudio) {
+      iosAudio = new Audio();
+      iosAudio.setAttribute('playsinline', '');
+    }
     const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = iosAudio;
+
     const cleanup = () => {
+      audio.onended = null;
+      audio.onerror = null;
       URL.revokeObjectURL(url);
-      if (currentAudioEl === audio) currentAudioEl = null;
+      iosAudioPlaying = false;
     };
     const onAbort = () => {
-      try { audio.pause(); audio.currentTime = 0; } catch(e) {}
+      try { audio.pause(); } catch(e) {}
       cleanup();
       reject(new Error('aborted'));
     };
     if (signal) signal.addEventListener('abort', onAbort, { once: true });
+
     audio.onended = () => {
       if (signal) signal.removeEventListener('abort', onAbort);
       cleanup();
@@ -2020,7 +2022,9 @@ function playBufferIOS(arrayBuffer, signal) {
       cleanup();
       reject(new Error('Audio playback error'));
     };
-    currentAudioEl = audio;
+
+    iosAudioPlaying = true;
+    audio.src = url;
     audio.play().catch(err => {
       if (signal) signal.removeEventListener('abort', onAbort);
       cleanup();
@@ -2031,7 +2035,7 @@ function playBufferIOS(arrayBuffer, signal) {
 
 async function speakText(text, lang, btn, genderOverride) {
   // If audio is playing, stop it (toggle behavior)
-  if (currentSource || currentAudioEl || ttsPlaying || (window.speechSynthesis && window.speechSynthesis.speaking)) {
+  if (currentSource || iosAudioPlaying || ttsPlaying || (window.speechSynthesis && window.speechSynthesis.speaking)) {
     stopAudio();
     return;
   }
@@ -2211,10 +2215,10 @@ function stopAudio() {
     try { currentSource.stop(); } catch(e) {}
     currentSource = null;
   }
-  // Stop iOS HTMLAudioElement
-  if (currentAudioEl) {
-    try { currentAudioEl.pause(); currentAudioEl.currentTime = 0; } catch(e) {}
-    currentAudioEl = null;
+  // Stop iOS persistent audio element (don't destroy — it's reused)
+  if (iosAudio && iosAudioPlaying) {
+    try { iosAudio.pause(); } catch(e) {}
+    iosAudioPlaying = false;
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSpeakingState();
