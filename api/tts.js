@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'ElevenLabs API key not configured' });
   }
 
-  const { text, voice } = req.body;
+  const { text, voice, lang } = req.body;
   if (!text) {
     return res.status(400).json({ error: 'Text is required' });
   }
@@ -21,12 +21,19 @@ export default async function handler(req, res) {
   };
   const voiceId = voices[voice] || voices.female;
 
+  // Map BCP-47 language codes to ElevenLabs language codes
+  const langMap = {
+    'ru-RU': 'ru', 'en-US': 'en', 'de-DE': 'de',
+    'fr-FR': 'fr', 'pt-BR': 'pt'
+  };
+  const languageCode = langMap[lang] || lang?.slice(0, 2) || 'en';
+
   // Strip parenthesized content (e.g. pronunciation hints) so TTS reads only the translation
   const cleanText = text.replace(/\s*\([^)]*\)/g, '').trim();
 
   try {
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=mp3_22050_32`,
       {
         method: 'POST',
         headers: {
@@ -36,7 +43,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           text: cleanText,
           model_id: 'eleven_turbo_v2_5',
-          output_format: 'mp3_22050_32',
+          language_code: languageCode,
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
