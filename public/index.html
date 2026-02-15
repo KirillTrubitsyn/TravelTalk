@@ -1370,6 +1370,7 @@ async function translateText() {
     document.getElementById('textResultText').dataset.lang = LANGS[toLang].tts;
     document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
+    prefetchTts(r.text, LANGS[toLang].tts);
   } catch (e) {
     if (e.name !== 'AbortError') {
       showToast('Ошибка: ' + e.message);
@@ -1455,6 +1456,7 @@ async function translatePhoto() {
       document.getElementById('photoTransText').textContent = transMatch[1].trim();
       document.getElementById('photoTransText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('photoTransResult').classList.add('visible');
+      prefetchTts(transMatch[1].trim(), LANGS[targetLang].tts);
     }
   } catch (e) {
     if (e.name !== 'AbortError') {
@@ -1543,6 +1545,7 @@ async function toggleVoiceRecording() {
         document.getElementById('voiceResultText').textContent = r.text;
         document.getElementById('voiceResultText').dataset.lang = LANGS[toLang].tts;
         document.getElementById('voiceResult').classList.add('visible');
+        prefetchTts(r.text, LANGS[toLang].tts);
         flipVoiceLang();
       } catch (e) {
         if (e.name !== 'AbortError') { showToast('Ошибка: ' + e.message); }
@@ -1594,6 +1597,9 @@ function addDialogMessage(text, langCode, autoPlay) {
   if (autoPlay && autoSpeak) {
     const playBtn = bubble.querySelector('.msg-play');
     speakText(text, lang.tts, playBtn);
+  } else {
+    // Prefetch even if not auto-playing, so manual play is instant
+    prefetchTts(text, lang.tts);
   }
 }
 
@@ -1956,6 +1962,32 @@ async function speakText(text, lang, btn) {
   }
 }
 
+// Prefetch TTS audio in the background right after translation completes.
+// By the time the user clicks the speaker button, audio is already cached.
+function prefetchTts(text, lang) {
+  if (!text || text.length < 2) return;
+  const ttsLang = lang || 'en-US';
+  const fullCacheKey = text + '|' + voiceGender + '|' + ttsLang;
+  if (ttsCache.has(fullCacheKey)) return; // already cached
+  const chunks = splitTtsChunks(text);
+  if (chunks.length <= 1) {
+    fetchTtsBuffer(text, ttsLang).then(buf => {
+      ttsCache.set(fullCacheKey, buf);
+      console.log('[TTS] Prefetched audio for:', text.substring(0, 40) + '…');
+    }).catch(() => {});
+  } else {
+    chunks.forEach(chunk => {
+      const chunkKey = chunk + '|' + voiceGender + '|' + ttsLang;
+      if (!ttsCache.has(chunkKey)) {
+        fetchTtsBuffer(chunk, ttsLang).then(buf => {
+          ttsCache.set(chunkKey, buf);
+        }).catch(() => {});
+      }
+    });
+    console.log('[TTS] Prefetching', chunks.length, 'chunks for:', text.substring(0, 40) + '…');
+  }
+}
+
 function speakResult(elementId, btn) {
   const el = document.getElementById(elementId);
   const text = el.textContent;
@@ -2189,6 +2221,7 @@ async function translateFile() {
       document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
+      prefetchTts(data.text, LANGS[targetLang].tts);
 
     } else if (uploadedFileType === 'pdf') {
       const res = await fetch('/api/translate', {
@@ -2210,6 +2243,7 @@ async function translateFile() {
       document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
+      prefetchTts(data.text, LANGS[targetLang].tts);
 
     } else {
       // Text file — chunked translation
@@ -2261,6 +2295,7 @@ async function translateFile() {
       document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
+      prefetchTts(results.join('\n'), LANGS[targetLang].tts);
     }
   } catch (e) {
     if (e.name === 'AbortError') {
