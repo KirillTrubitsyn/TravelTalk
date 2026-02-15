@@ -430,9 +430,6 @@ body {
 .icon-btn.speaking, .msg-play.speaking { color: var(--danger); border-color: var(--danger); cursor: pointer; }
 .icon-btn.speaking svg, .msg-play.speaking svg { animation: pulse-speak 0.8s ease-in-out infinite; }
 @keyframes pulse-speak { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
-.icon-btn.tts-loading, .msg-play.tts-loading { color: var(--sea); border-color: var(--sea); cursor: pointer; }
-.icon-btn.tts-loading svg, .msg-play.tts-loading svg { animation: spin-load 0.8s linear infinite; }
-@keyframes spin-load { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .tts-global-stop {
   position: fixed;
   bottom: 30px;
@@ -1795,8 +1792,6 @@ async function toggleDialogRecording() {
 // ===== TTS (Web Audio API for mobile compatibility) =====
 let audioContext = null;
 let currentSource = null;
-let ttsLoading = false;       // true while TTS fetch is in-flight
-let ttsAbort = null;          // AbortController for in-flight TTS fetch
 const ttsCache = new Map();
 
 function getAudioContext() {
@@ -1819,7 +1814,6 @@ document.addEventListener('touchend', () => {
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
-  document.querySelectorAll('.tts-loading').forEach(el => el.classList.remove('tts-loading'));
   const g = document.getElementById('ttsGlobalStop');
   if (g) g.classList.remove('visible');
 }
@@ -1830,8 +1824,8 @@ function showGlobalStop() {
 }
 
 async function speakText(text, lang, btn) {
-  // If audio is playing or loading, stop/cancel it (toggle behavior)
-  if (ttsLoading || currentSource || (window.speechSynthesis && window.speechSynthesis.speaking)) {
+  // If audio is playing, stop it (toggle behavior)
+  if (currentSource || (window.speechSynthesis && window.speechSynthesis.speaking)) {
     stopAudio();
     return;
   }
@@ -1840,38 +1834,25 @@ async function speakText(text, lang, btn) {
   stopAudio();
 
   clearSpeakingState();
+  if (btn) btn.classList.add('speaking');
 
   const ttsLang = lang || 'en-US';
   const cacheKey = text + '|' + voiceGender + '|' + ttsLang;
-  const cached = ttsCache.has(cacheKey);
-
-  // Show loading spinner on button while fetching, or speaking state if cached
-  if (btn) btn.classList.add(cached ? 'speaking' : 'tts-loading');
-
-  // Mark as loading to prevent duplicate requests
-  ttsLoading = true;
-  showGlobalStop();
-
-  // Pre-warm AudioContext so it's ready by the time playback starts
-  try { await getAudioContext().resume(); } catch(e) {}
 
   try {
     let audioBuffer;
-    if (cached) {
+    if (ttsCache.has(cacheKey)) {
       audioBuffer = ttsCache.get(cacheKey);
     } else {
-      ttsAbort = new AbortController();
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: voiceGender, lang: ttsLang }),
-        signal: ttsAbort.signal
+        body: JSON.stringify({ text, voice: voiceGender, lang: ttsLang })
       });
-      ttsAbort = null;
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        console.warn('[TTS] TTS error:', res.status, errBody);
+        console.warn('[TTS] ElevenLabs error:', res.status, errBody);
         throw new Error('TTS error: ' + res.status);
       }
 
@@ -1896,20 +1877,10 @@ async function speakText(text, lang, btn) {
       }
     };
 
-    // Switch from loading spinner to speaking state
-    if (btn) { btn.classList.remove('tts-loading'); btn.classList.add('speaking'); }
-
     currentSource = source;
-    ttsLoading = false;
     showGlobalStop();
     source.start(0);
   } catch (e) {
-    ttsLoading = false;
-    // If aborted by user, just clean up and return
-    if (e.name === 'AbortError') {
-      clearSpeakingState();
-      return;
-    }
     console.warn('[TTS] Falling back to browser speech. lang=' + ttsLang, e.message);
     clearSpeakingState();
     // Fallback to browser TTS
@@ -1980,12 +1951,6 @@ function stopCurrentOperation() {
 }
 
 function stopAudio() {
-  // Cancel any in-flight TTS fetch
-  if (ttsAbort) {
-    ttsAbort.abort();
-    ttsAbort = null;
-  }
-  ttsLoading = false;
   if (currentSource) {
     try { currentSource.stop(); } catch(e) {}
     currentSource = null;
