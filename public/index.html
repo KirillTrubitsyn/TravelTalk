@@ -960,6 +960,8 @@ body {
         <option value="en">English</option>
         <option value="de">Deutsch</option>
         <option value="fr">Français</option>
+        <option value="it">Italiano</option>
+        <option value="es">Español</option>
       </select>
     </div>
     <button class="lang-swap" onclick="swapLangs()">
@@ -973,6 +975,8 @@ body {
         <option value="ru">Русский</option>
         <option value="de">Deutsch</option>
         <option value="fr">Français</option>
+        <option value="it">Italiano</option>
+        <option value="es">Español</option>
       </select>
     </div>
   </div>
@@ -1163,7 +1167,9 @@ const LANGS = {
   'pt-BR': { name: 'Português',  flagCode: 'br', speech: 'pt-BR',  tts: 'pt-BR' },
   'en':    { name: 'English',    flagCode: 'gb', speech: 'en-US',  tts: 'en-US' },
   'de':    { name: 'Deutsch',    flagCode: 'de', speech: 'de-DE',  tts: 'de-DE' },
-  'fr':    { name: 'Français',   flagCode: 'fr', speech: 'fr-FR',  tts: 'fr-FR' }
+  'fr':    { name: 'Français',   flagCode: 'fr', speech: 'fr-FR',  tts: 'fr-FR' },
+  'it':    { name: 'Italiano',   flagCode: 'it', speech: 'it-IT',  tts: 'it-IT' },
+  'es':    { name: 'Español',    flagCode: 'es', speech: 'es-ES',  tts: 'es-ES' }
 };
 function flagImg(code, size) {
   size = size || 20;
@@ -1172,7 +1178,8 @@ function flagImg(code, size) {
 
 const LANG_NAMES_FOR_PROMPT = {
   'ru': 'Russian', 'pt-BR': 'Brazilian Portuguese',
-  'en': 'English', 'de': 'German', 'fr': 'French'
+  'en': 'English', 'de': 'German', 'fr': 'French',
+  'it': 'Italian', 'es': 'Spanish'
 };
 
 let sourceLang = 'ru';
