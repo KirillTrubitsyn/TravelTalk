@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST' && req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -8,8 +8,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Gemini API key not configured' });
   }
 
-  const params = req.method === 'GET' ? req.query : (req.body || {});
-  const { text, voice, lang } = params;
+  const { text, voice, lang } = req.body;
   if (!text) {
     return res.status(400).json({ error: 'Text is required' });
   }
@@ -33,7 +32,6 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           contents: [{
-            role: 'user',
             parts: [{
               text: text
             }]
@@ -41,12 +39,12 @@ export default async function handler(req, res) {
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
+              languageCode: lang ? lang.toLowerCase() : undefined,
               voiceConfig: {
                 prebuiltVoiceConfig: {
                   voiceName: voiceName
                 }
-              },
-              ...(lang ? { languageCode: lang.toLowerCase() } : {})
+              }
             }
           }
         })
