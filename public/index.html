@@ -1801,9 +1801,10 @@ async function toggleDialogRecording() {
   recognition.start();
 }
 
-// ===== TTS (unlock-then-fetch for mobile compatibility) =====
+// ===== TTS =====
 let ttsLoading = false;
 let _lastBlobUrl = null;
+let _ttsAbort = null;
 
 // Persistent Audio element – reused across plays.
 let _audioEl = null;
@@ -1814,10 +1815,6 @@ function getAudioEl() {
   }
   return _audioEl;
 }
-
-// Tiny silent WAV (44 bytes) used to "unlock" the audio element via user gesture.
-// Once play() succeeds on this, iOS Safari allows future play() calls without a gesture.
-const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
@@ -1850,47 +1847,51 @@ function speakText(text, lang, btn) {
   // Revoke previous blob URL to free memory
   if (_lastBlobUrl) { URL.revokeObjectURL(_lastBlobUrl); _lastBlobUrl = null; }
 
-  // Step 1: "Unlock" the audio element in the user-gesture context.
-  // Play a tiny silent WAV; once play() resolves, iOS Safari allows
-  // subsequent play() calls on this element without a fresh gesture.
-  audio.src = SILENT_WAV;
-  audio.play().then(() => {
-    audio.pause();
-    // Step 2: Fetch real audio from TTS API
-    const params = new URLSearchParams({ text, voice: voiceGender, lang: ttsLang });
-    return fetch('/api/tts?' + params.toString());
+  // Abort previous request if still in flight
+  if (_ttsAbort) { _ttsAbort.abort(); }
+  _ttsAbort = new AbortController();
+
+  // Fetch audio via POST, then play via Audio element
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice: voiceGender, lang: ttsLang }),
+    signal: _ttsAbort.signal
   }).then(r => {
+    _ttsAbort = null;
     if (!r.ok) {
-      // Server returned an error — read the JSON message
       return r.json().catch(() => ({})).then(j => {
         throw new Error(j.error || 'TTS ошибка ' + r.status);
       });
     }
     return r.blob();
   }).then(blob => {
-    // Step 3: Play the audio blob
     _lastBlobUrl = URL.createObjectURL(blob);
     audio.onended = () => clearSpeakingState();
-    audio.onerror = () => {
+    audio.onerror = (ev) => {
+      var code = audio.error ? audio.error.code : '?';
+      console.warn('[TTS] audio error, code=' + code);
       ttsLoading = false;
       clearSpeakingState();
-      showToast('Формат аудио не поддерживается');
       fallbackSpeechSynthesis(text, ttsLang, btn);
     };
     audio.src = _lastBlobUrl;
     return audio.play();
   }).then(() => {
-    // Playback started
     if (btn) { btn.classList.remove('tts-loading'); btn.classList.add('speaking'); }
     ttsLoading = false;
     showGlobalStop();
   }).catch(e => {
     ttsLoading = false;
+    _ttsAbort = null;
     if (e.name === 'AbortError') { clearSpeakingState(); return; }
     console.warn('[TTS] error:', e.name, e.message);
     clearSpeakingState();
-    // Auto-play without gesture — expected failure, stay silent
-    if (e.name === 'NotAllowedError') return;
+    if (e.name === 'NotAllowedError') {
+      // Autoplay blocked — try fallback directly
+      fallbackSpeechSynthesis(text, ttsLang, btn);
+      return;
+    }
     showToast(e.message || 'Ошибка озвучки');
     fallbackSpeechSynthesis(text, ttsLang, btn);
   });
@@ -1980,6 +1981,7 @@ function stopCurrentOperation() {
 
 function stopAudio() {
   ttsLoading = false;
+  if (_ttsAbort) { _ttsAbort.abort(); _ttsAbort = null; }
   const audio = getAudioEl();
   audio.pause();
   audio.removeAttribute('src');
