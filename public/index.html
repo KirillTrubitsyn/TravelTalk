@@ -1652,10 +1652,23 @@ async function sendDialog() {
 function toggleDialogRecording() {
   const mic = document.getElementById('dialogMic');
 
-  if (dialogRecording) { if (recognition) recognition.stop(); return; }
+  if (dialogRecording) {
+    // User gesture context — resume AudioContext now so auto-speak works in onend
+    // (SpeechRecognition interrupts AudioContext on mobile, leaving it suspended)
+    try { getAudioContext().resume(); } catch(e) {}
+    if (recognition) recognition.stop();
+    return;
+  }
 
   // Stop any playing audio so it doesn't interfere with recording
   stopAudio();
+
+  // Abort any in-flight translation from a previous recording
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+    removeLoadingBubble();
+  }
 
   // Abort previous recognition instance to release mic resources
   if (recognition) {
@@ -1666,6 +1679,9 @@ function toggleDialogRecording() {
   recognition = getSpeechRecognition();
   if (!recognition) return;
 
+  // Use continuous mode so recognition doesn't cut off mid-phrase on mobile;
+  // user explicitly stops by tapping mic again
+  recognition.continuous = true;
   recognition.lang = LANGS[dialogNextLang].speech;
   dialogRecording = true;
   mic.classList.add('recording');
@@ -1714,7 +1730,9 @@ function toggleDialogRecording() {
   recognition.onerror = (e) => {
     dialogRecording = false;
     mic.classList.remove('recording');
-    showToast('Ошибка записи: ' + e.error);
+    if (e.error !== 'aborted') {
+      showToast('Ошибка записи: ' + e.error);
+    }
   };
 
   recognition.start();
@@ -1785,6 +1803,8 @@ async function speakText(text, lang, btn) {
 
     const ctx = getAudioContext();
     await ctx.resume();
+    // If AudioContext is still suspended (e.g. no user gesture), fall to speechSynthesis
+    if (ctx.state !== 'running') throw new Error('AudioContext suspended');
 
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
