@@ -39,6 +39,7 @@ export default async function handler(req, res) {
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
+              languageCode: lang ? lang.toLowerCase() : undefined,
               voiceConfig: {
                 prebuiltVoiceConfig: {
                   voiceName: voiceName
