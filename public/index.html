@@ -640,6 +640,15 @@ body {
 .msg-source .msg-label { color: var(--terracotta); }
 .msg-target .msg-label { color: var(--sea); }
 .msg-text { color: var(--text); }
+.msg-gender-badge {
+  display: inline-block;
+  font-size: 12px;
+  margin-left: 3px;
+  vertical-align: middle;
+  opacity: 0.8;
+}
+.msg-gender-badge.male { color: var(--sea); }
+.msg-gender-badge.female { color: var(--terracotta); }
 
 .msg-play {
   position: absolute;
@@ -1575,13 +1584,90 @@ async function toggleVoiceRecording() {
   recognition.start();
 }
 
+// ===== GENDER DETECTION VIA PITCH ANALYSIS =====
+let pitchDetectionStream = null;
+let pitchAnalyserSource = null;
+let pitchAnalyser = null;
+let pitchDetectionInterval = null;
+let detectedPitches = [];
+
+// Autocorrelation-based pitch detection
+function detectPitch(buffer, sampleRate) {
+  // Check signal level — skip if too quiet
+  let rms = 0;
+  for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
+  rms = Math.sqrt(rms / buffer.length);
+  if (rms < 0.01) return -1;
+
+  const SIZE = buffer.length;
+  const correlations = new Float32Array(SIZE);
+
+  for (let lag = 0; lag < SIZE; lag++) {
+    let sum = 0;
+    for (let i = 0; i < SIZE - lag; i++) sum += buffer[i] * buffer[i + lag];
+    correlations[lag] = sum;
+  }
+
+  // Find first dip (where autocorrelation starts decreasing)
+  let d = 0;
+  while (d < SIZE - 1 && correlations[d] > correlations[d + 1]) d++;
+
+  // Find the highest peak after the dip
+  let maxVal = -1, maxPos = -1;
+  for (let i = d; i < SIZE; i++) {
+    if (correlations[i] > maxVal) { maxVal = correlations[i]; maxPos = i; }
+  }
+
+  if (maxPos <= 0) return -1;
+  const freq = sampleRate / maxPos;
+  // Filter out unreasonable frequencies (human voice: 60–500 Hz)
+  return (freq >= 60 && freq <= 500) ? freq : -1;
+}
+
+function startPitchDetection() {
+  detectedPitches = [];
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    pitchDetectionStream = stream;
+    const ctx = getAudioContext();
+    pitchAnalyserSource = ctx.createMediaStreamSource(stream);
+    pitchAnalyser = ctx.createAnalyser();
+    pitchAnalyser.fftSize = 2048;
+    pitchAnalyserSource.connect(pitchAnalyser);
+
+    const buffer = new Float32Array(pitchAnalyser.fftSize);
+    pitchDetectionInterval = setInterval(() => {
+      pitchAnalyser.getFloatTimeDomainData(buffer);
+      const pitch = detectPitch(buffer, ctx.sampleRate);
+      if (pitch > 0) detectedPitches.push(pitch);
+    }, 100);
+  }).catch(() => {});
+}
+
+function stopPitchDetection() {
+  if (pitchDetectionInterval) { clearInterval(pitchDetectionInterval); pitchDetectionInterval = null; }
+  if (pitchAnalyserSource) { try { pitchAnalyserSource.disconnect(); } catch(e) {} pitchAnalyserSource = null; }
+  if (pitchDetectionStream) { pitchDetectionStream.getTracks().forEach(t => t.stop()); pitchDetectionStream = null; }
+  pitchAnalyser = null;
+
+  if (detectedPitches.length < 3) return null; // Not enough data
+
+  // Use median pitch for robustness against outliers
+  const sorted = [...detectedPitches].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+
+  // Male voice: ~85–180 Hz, Female voice: ~165–255 Hz, threshold ~160 Hz
+  const gender = median < 160 ? 'male' : 'female';
+  console.log('[Gender] Detected:', gender, '| Median pitch:', Math.round(median), 'Hz | Samples:', detectedPitches.length);
+  return gender;
+}
+
 // ===== DIALOG =====
 function toggleAutoSpeak() {
   autoSpeak = !autoSpeak;
   document.getElementById('autoSpeakToggle').classList.toggle('on', autoSpeak);
 }
 
-function addDialogMessage(text, langCode, autoPlay) {
+function addDialogMessage(text, langCode, autoPlay, detectedGender) {
   const container = document.getElementById('dialogMessages');
   if (dialogFirstMessage) { container.innerHTML = ''; dialogFirstMessage = false; }
 
@@ -1591,11 +1677,15 @@ function addDialogMessage(text, langCode, autoPlay) {
   bubble.className = 'msg-bubble ' + (isSource ? 'msg-source' : 'msg-target');
 
   const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+  const genderForTts = detectedGender || voiceGender;
+  const genderBadge = detectedGender
+    ? ' <span class="msg-gender-badge ' + detectedGender + '">' + (detectedGender === 'male' ? '♂' : '♀') + '</span>'
+    : '';
 
   bubble.innerHTML =
-    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + lang.name + '</div>' +
+    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + lang.name + genderBadge + '</div>' +
     '<div class="msg-text">' + text + '</div>' +
-    '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\', this)">' +
+    '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\', this, \'' + genderForTts + '\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
 
   container.appendChild(bubble);
@@ -1603,10 +1693,10 @@ function addDialogMessage(text, langCode, autoPlay) {
 
   if (autoPlay && autoSpeak) {
     const playBtn = bubble.querySelector('.msg-play');
-    speakText(text, lang.tts, playBtn);
+    speakText(text, lang.tts, playBtn, genderForTts);
   } else {
     // Prefetch even if not auto-playing, so manual play is instant
-    prefetchTts(text, lang.tts);
+    prefetchTts(text, lang.tts, genderForTts);
   }
 }
 
@@ -1698,6 +1788,9 @@ async function toggleDialogRecording() {
   dialogRecording = true;
   mic.classList.add('recording');
 
+  // Start pitch analysis for automatic gender detection
+  startPitchDetection();
+
   let finalText = '';
 
   recognition.onresult = (e) => {
@@ -1709,6 +1802,9 @@ async function toggleDialogRecording() {
   recognition.onend = async () => {
     dialogRecording = false;
     mic.classList.remove('recording');
+
+    // Determine speaker gender from pitch analysis
+    const detectedGender = stopPitchDetection();
 
     if (finalText.trim()) {
       addLoadingBubble();
@@ -1725,8 +1821,8 @@ async function toggleDialogRecording() {
         const fromLang = r.from || dialogNextLang;
         const toLang = getOtherLang(fromLang);
         removeLoadingBubble();
-        addDialogMessage(finalText.trim(), fromLang, false);
-        addDialogMessage(r.text, toLang, true);
+        addDialogMessage(finalText.trim(), fromLang, false, detectedGender);
+        addDialogMessage(r.text, toLang, true, detectedGender);
         flipDialogLang();
       } catch (e) {
         removeLoadingBubble();
@@ -1742,6 +1838,7 @@ async function toggleDialogRecording() {
   recognition.onerror = (e) => {
     dialogRecording = false;
     mic.classList.remove('recording');
+    stopPitchDetection(); // Clean up pitch analysis on error
     if (e.error === 'not-allowed') {
       showToast('Разрешите доступ к микрофону в настройках браузера');
     } else if (e.error !== 'aborted') {
@@ -1826,11 +1923,12 @@ function splitTtsChunks(text) {
 }
 
 // Fetch and decode a single TTS audio buffer
-async function fetchTtsBuffer(text, lang, signal) {
+async function fetchTtsBuffer(text, lang, signal, genderOverride) {
+  const voice = genderOverride || voiceGender;
   const res = await fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, voice: voiceGender, lang }),
+    body: JSON.stringify({ text, voice, lang }),
     signal
   });
   if (!res.ok) {
@@ -1866,7 +1964,7 @@ function playBufferAsync(audioBuffer, signal) {
   });
 }
 
-async function speakText(text, lang, btn) {
+async function speakText(text, lang, btn, genderOverride) {
   // If audio is playing, stop it (toggle behavior)
   if (currentSource || ttsPlaying || (window.speechSynthesis && window.speechSynthesis.speaking)) {
     stopAudio();
@@ -1878,6 +1976,7 @@ async function speakText(text, lang, btn) {
   if (btn) btn.classList.add('speaking');
 
   const ttsLang = lang || 'en-US';
+  const voice = genderOverride || voiceGender;
 
   try {
     const ctx = getAudioContext();
@@ -1885,7 +1984,7 @@ async function speakText(text, lang, btn) {
     if (ctx.state !== 'running') throw new Error('AudioContext suspended');
 
     // Check full-text cache first
-    const fullCacheKey = text + '|' + voiceGender + '|' + ttsLang;
+    const fullCacheKey = text + '|' + voice + '|' + ttsLang;
     if (ttsCache.has(fullCacheKey)) {
       showGlobalStop();
       await playBufferAsync(ttsCache.get(fullCacheKey));
@@ -1899,7 +1998,7 @@ async function speakText(text, lang, btn) {
 
     if (chunks.length <= 1) {
       // Single chunk — simple path
-      const audioBuffer = await fetchTtsBuffer(text, ttsLang, signal);
+      const audioBuffer = await fetchTtsBuffer(text, ttsLang, signal, genderOverride);
       ttsCache.set(fullCacheKey, audioBuffer);
       if (signal.aborted) return;
       showGlobalStop();
@@ -1914,9 +2013,9 @@ async function speakText(text, lang, btn) {
     showGlobalStop();
 
     const bufferPromises = chunks.map(chunk => {
-      const chunkKey = chunk + '|' + voiceGender + '|' + ttsLang;
+      const chunkKey = chunk + '|' + voice + '|' + ttsLang;
       if (ttsCache.has(chunkKey)) return Promise.resolve(ttsCache.get(chunkKey));
-      return fetchTtsBuffer(chunk, ttsLang, signal).then(buf => {
+      return fetchTtsBuffer(chunk, ttsLang, signal, genderOverride).then(buf => {
         ttsCache.set(chunkKey, buf);
         return buf;
       });
@@ -1971,22 +2070,23 @@ async function speakText(text, lang, btn) {
 
 // Prefetch TTS audio in the background right after translation completes.
 // By the time the user clicks the speaker button, audio is already cached.
-function prefetchTts(text, lang) {
+function prefetchTts(text, lang, genderOverride) {
   if (!text || text.length < 2) return;
   const ttsLang = lang || 'en-US';
-  const fullCacheKey = text + '|' + voiceGender + '|' + ttsLang;
+  const voice = genderOverride || voiceGender;
+  const fullCacheKey = text + '|' + voice + '|' + ttsLang;
   if (ttsCache.has(fullCacheKey)) return; // already cached
   const chunks = splitTtsChunks(text);
   if (chunks.length <= 1) {
-    fetchTtsBuffer(text, ttsLang).then(buf => {
+    fetchTtsBuffer(text, ttsLang, null, genderOverride).then(buf => {
       ttsCache.set(fullCacheKey, buf);
       console.log('[TTS] Prefetched audio for:', text.substring(0, 40) + '…');
     }).catch(() => {});
   } else {
     chunks.forEach(chunk => {
-      const chunkKey = chunk + '|' + voiceGender + '|' + ttsLang;
+      const chunkKey = chunk + '|' + voice + '|' + ttsLang;
       if (!ttsCache.has(chunkKey)) {
-        fetchTtsBuffer(chunk, ttsLang).then(buf => {
+        fetchTtsBuffer(chunk, ttsLang, null, genderOverride).then(buf => {
           ttsCache.set(chunkKey, buf);
         }).catch(() => {});
       }
