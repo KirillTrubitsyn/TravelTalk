@@ -24,7 +24,8 @@ export default async function handler(req, res) {
   // Map BCP-47 language codes to ElevenLabs language codes
   const langMap = {
     'ru-RU': 'ru', 'en-US': 'en', 'de-DE': 'de',
-    'fr-FR': 'fr', 'pt-BR': 'pt'
+    'fr-FR': 'fr', 'pt-BR': 'pt', 'it-IT': 'it',
+    'es-ES': 'es'
   };
   const languageCode = langMap[lang] || lang?.slice(0, 2) || 'en';
 
