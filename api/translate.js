@@ -11,13 +11,19 @@ export default async function handler(req, res) {
   try {
     const { system, content, max_tokens } = req.body;
 
+    const hasPdf = Array.isArray(content) && content.some(c => c.type === 'document');
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    };
+    if (hasPdf) {
+      headers['anthropic-beta'] = 'pdfs-2024-09-25';
+    }
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers,
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: max_tokens || 1024,
