@@ -427,9 +427,36 @@ body {
   border-color: var(--sea);
 }
 .icon-btn svg { width: 16px; height: 16px; }
-.icon-btn.speaking, .msg-play.speaking { pointer-events: none; color: var(--accent); border-color: var(--accent); }
+.icon-btn.speaking, .msg-play.speaking { color: var(--danger); border-color: var(--danger); cursor: pointer; }
 .icon-btn.speaking svg, .msg-play.speaking svg { animation: pulse-speak 0.8s ease-in-out infinite; }
 @keyframes pulse-speak { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+.tts-global-stop {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  height: 44px;
+  padding: 0 20px;
+  border-radius: var(--r16);
+  border: 2px solid var(--danger);
+  background: var(--surface);
+  color: var(--danger);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadowMd);
+  z-index: 199;
+  opacity: 0;
+  transition: all 0.3s;
+}
+.tts-global-stop.visible { display: inline-flex; opacity: 1; transform: translateX(-50%) translateY(0); }
+.tts-global-stop:hover { background: rgba(239,68,68,0.1); box-shadow: 0 4px 16px rgba(239,68,68,0.25); }
+.tts-global-stop:active { transform: translateX(-50%) translateY(1px); }
+.tts-global-stop svg { width: 16px; height: 16px; }
 
 .new-translate-btn {
   height: 36px;
@@ -997,9 +1024,6 @@ body {
           <button class="icon-btn" onclick="speakResult('textResultText', this)" title="Озвучить">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
-          <button class="icon-btn" id="ttsStopBtn" onclick="stopAudio()" title="Остановить озвучку" style="display:none">
-            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-          </button>
           <div style="flex:1"></div>
           <button class="new-translate-btn" onclick="clearTextForm()" title="Новый перевод">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1147,6 +1171,10 @@ body {
 
 
 <div class="toast" id="toast"></div>
+<button class="tts-global-stop" id="ttsGlobalStop" onclick="stopAudio()">
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+  Стоп
+</button>
 
 <script>
 // ===== LANGUAGE CONFIG =====
@@ -1763,13 +1791,18 @@ document.addEventListener('touchend', () => {
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
-  const ttsStop = document.getElementById('ttsStopBtn');
-  if (ttsStop) ttsStop.style.display = 'none';
+  const g = document.getElementById('ttsGlobalStop');
+  if (g) g.classList.remove('visible');
+}
+
+function showGlobalStop() {
+  const g = document.getElementById('ttsGlobalStop');
+  if (g) g.classList.add('visible');
 }
 
 async function speakText(text, lang, btn) {
   // If audio is playing, stop it (toggle behavior)
-  if (currentSource) {
+  if (currentSource || (window.speechSynthesis && window.speechSynthesis.speaking)) {
     stopAudio();
     return;
   }
@@ -1817,8 +1850,7 @@ async function speakText(text, lang, btn) {
     };
 
     currentSource = source;
-    const ttsStop = document.getElementById('ttsStopBtn');
-    if (ttsStop) ttsStop.style.display = 'flex';
+    showGlobalStop();
     source.start(0);
   } catch (e) {
     clearSpeakingState();
@@ -1830,8 +1862,7 @@ async function speakText(text, lang, btn) {
       const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
       if (match) u.voice = match;
       if (btn) { btn.classList.add('speaking'); u.onend = clearSpeakingState; }
-      const ttsStop2 = document.getElementById('ttsStopBtn');
-      if (ttsStop2) ttsStop2.style.display = 'flex';
+      showGlobalStop();
       window.speechSynthesis.speak(u);
     }
   }
