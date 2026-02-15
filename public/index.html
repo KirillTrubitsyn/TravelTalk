@@ -1314,7 +1314,7 @@ function toggleVoiceLang() {
 }
 
 // ===== API =====
-async function callClaude(systemPrompt, userContent, maxTokens, signal) {
+async function callTranslate(systemPrompt, userContent, maxTokens, signal) {
   const opts = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1408,7 +1408,7 @@ async function translateText() {
   currentAbortController = new AbortController();
 
   try {
-    const raw = await callClaude(
+    const raw = await callTranslate(
       getAutoTranslatePrompt() + ' If the text is a single word, also provide a brief pronunciation hint in parentheses using the script of the target language inside the "text" field.',
       text,
       1024,
@@ -1587,7 +1587,7 @@ async function toggleVoiceRecording() {
     if (finalText.trim()) {
       currentAbortController = new AbortController();
       try {
-        const raw = await callClaude(getAutoTranslatePrompt(), finalText.trim(), 1024, currentAbortController.signal);
+        const raw = await callTranslate(getAutoTranslatePrompt(), finalText.trim(), 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
         const toLang = getOtherLang(r.from);
         document.getElementById('voiceResultText').textContent = r.text;
@@ -1672,7 +1672,7 @@ async function sendDialog() {
   currentAbortController = new AbortController();
 
   try {
-    const raw = await callClaude(
+    const raw = await callTranslate(
       getAutoTranslatePrompt() + ' Make the translation sound natural and fluent.',
       text,
       1024,
@@ -1752,7 +1752,7 @@ async function toggleDialogRecording() {
       currentAbortController = new AbortController();
 
       try {
-        const raw = await callClaude(
+        const raw = await callTranslate(
           getAutoTranslatePrompt() + ' Make the translation sound natural and fluent.',
           finalText.trim(),
           1024,
