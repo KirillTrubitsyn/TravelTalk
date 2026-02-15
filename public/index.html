@@ -1702,8 +1702,6 @@ async function toggleDialogRecording() {
   const mic = document.getElementById('dialogMic');
 
   if (dialogRecording) {
-    // User gesture context — unlock audio so auto-speak works after recognition ends
-    await unlockAudio();
     if (recognition) recognition.stop();
     return;
   }
@@ -1791,14 +1789,10 @@ async function toggleDialogRecording() {
   recognition.start();
 }
 
-// ===== TTS (HTML5 Audio for mobile compatibility) =====
-let ttsLoading = false;       // true while TTS fetch is in-flight
-let ttsAbort = null;          // AbortController for in-flight TTS fetch
-const ttsCache = new Map();   // key → Blob
-let currentBlobUrl = null;
+// ===== TTS (direct-URL playback for mobile compatibility) =====
+let ttsLoading = false;
 
-// Persistent Audio element – reusing the same element keeps iOS
-// "unlocked" for programmatic playback after the first user gesture.
+// Persistent Audio element – reused across plays.
 let _audioEl = null;
 function getAudioEl() {
   if (!_audioEl) {
@@ -1807,28 +1801,6 @@ function getAudioEl() {
   }
   return _audioEl;
 }
-
-// Unlock audio playback on iOS / mobile WebView by triggering play()
-// on a silent clip during a user gesture.  Once unlocked the element
-// accepts programmatic play() calls (e.g. auto-speak in dialog mode).
-// Returns a Promise; concurrent callers share the same in-flight unlock.
-let _audioUnlocked = false;
-let _unlockPromise = null;
-function unlockAudio() {
-  if (_audioUnlocked) return Promise.resolve();
-  if (_unlockPromise) return _unlockPromise;
-  const a = getAudioEl();
-  a.src = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAAAAA==';
-  a.volume = 0;
-  _unlockPromise = a.play().then(() => {
-    a.pause(); a.volume = 1; a.currentTime = 0;
-    _audioUnlocked = true;
-    _unlockPromise = null;
-  }).catch(() => { _unlockPromise = null; });
-  return _unlockPromise;
-}
-document.addEventListener('click', () => unlockAudio());
-document.addEventListener('touchend', () => unlockAudio(), { passive: true });
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
@@ -1844,83 +1816,51 @@ function showGlobalStop() {
 
 async function speakText(text, lang, btn) {
   const audio = getAudioEl();
-  // If audio is playing or loading, stop/cancel it (toggle behavior)
+  // Toggle: if already playing or loading, stop
   if (ttsLoading || (!audio.paused && !audio.ended) || (window.speechSynthesis && window.speechSynthesis.speaking)) {
     stopAudio();
     return;
   }
 
-  // Stop any currently playing audio/speech
   stopAudio();
-
   clearSpeakingState();
 
-  // Unlock audio element within user gesture context (must happen before async fetch).
-  // On iOS / mobile, audio.play() only works after a prior play() from a gesture.
-  await unlockAudio();
-
   const ttsLang = lang || 'en-US';
-  const cacheKey = text + '|' + voiceGender + '|' + ttsLang;
-  const cached = ttsCache.has(cacheKey);
 
-  // Show loading spinner on button while fetching, or speaking state if cached
-  if (btn) btn.classList.add(cached ? 'speaking' : 'tts-loading');
-
-  // Mark as loading to prevent duplicate requests
+  if (btn) btn.classList.add('tts-loading');
   ttsLoading = true;
   showGlobalStop();
 
+  audio.onended = () => clearSpeakingState();
+  audio.onerror = () => {
+    ttsLoading = false;
+    clearSpeakingState();
+    showToast('Ошибка озвучки');
+    fallbackSpeechSynthesis(text, ttsLang, btn);
+  };
+
+  // Set audio.src to a direct GET URL so the browser handles the
+  // network request internally.  audio.play() is called synchronously
+  // inside the user-gesture context — no async gap — so iOS / Android
+  // allow playback without unlock hacks.  HTTP cache (max-age=86400)
+  // makes repeated plays instant.
+  const params = new URLSearchParams({ text, voice: voiceGender, lang: ttsLang });
+  audio.src = '/api/tts?' + params.toString();
+
   try {
-    let blob;
-    if (cached) {
-      blob = ttsCache.get(cacheKey);
-    } else {
-      ttsAbort = new AbortController();
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: voiceGender, lang: ttsLang }),
-        signal: ttsAbort.signal
-      });
-      ttsAbort = null;
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        console.warn('[TTS] TTS error:', res.status, errBody);
-        throw new Error('TTS error: ' + res.status);
-      }
-
-      blob = await res.blob();
-      ttsCache.set(cacheKey, blob);
-    }
-
-    // Play via the persistent Audio element (works on mobile after unlock)
-    if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = null; }
-    currentBlobUrl = URL.createObjectURL(blob);
-
-    audio.onended = () => clearSpeakingState();
-    audio.onerror = () => {
-      console.warn('[TTS] Audio element error, falling back to speechSynthesis');
-      clearSpeakingState();
-      fallbackSpeechSynthesis(text, ttsLang, btn);
-    };
-
-    audio.src = currentBlobUrl;
-
-    // Switch from loading spinner to speaking state
+    await audio.play();
+    // Playback started — switch loading → speaking
     if (btn) { btn.classList.remove('tts-loading'); btn.classList.add('speaking'); }
-
     ttsLoading = false;
     showGlobalStop();
-    await audio.play();
   } catch (e) {
     ttsLoading = false;
-    // If aborted by user, just clean up and return
     if (e.name === 'AbortError') {
       clearSpeakingState();
       return;
     }
-    console.warn('[TTS] Falling back to browser speech. lang=' + ttsLang, e.message);
+    console.warn('[TTS] play() failed:', e.name, e.message);
+    showToast('Ошибка: ' + e.name);
     clearSpeakingState();
     fallbackSpeechSynthesis(text, ttsLang, btn);
   }
@@ -1990,22 +1930,11 @@ function stopCurrentOperation() {
 }
 
 function stopAudio() {
-  // Cancel any in-flight TTS fetch
-  if (ttsAbort) {
-    ttsAbort.abort();
-    ttsAbort = null;
-  }
   ttsLoading = false;
-  // Stop HTML5 Audio element
   const audio = getAudioEl();
-  if (!audio.paused) {
-    audio.pause();
-    audio.currentTime = 0;
-  }
-  if (currentBlobUrl) {
-    URL.revokeObjectURL(currentBlobUrl);
-    currentBlobUrl = null;
-  }
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();  // cancels any pending network request
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSpeakingState();
 }
