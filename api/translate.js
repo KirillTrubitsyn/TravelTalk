@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       contents: [{ role: 'user', parts }],
       generationConfig: {
         maxOutputTokens: max_tokens || 1024,
-        thinkingConfig: { thinkingBudget: 0 }
+        thinkingConfig: { thinkingLevel: 'MINIMAL' }
       }
     };
 
