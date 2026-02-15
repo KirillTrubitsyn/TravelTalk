@@ -1409,7 +1409,7 @@ async function translateText() {
 
   try {
     const raw = await callTranslate(
-      getAutoTranslatePrompt() + ' If the text is a single word, also provide a brief pronunciation hint in parentheses using the script of the target language inside the "text" field.',
+      getAutoTranslatePrompt(),
       text,
       1024,
       currentAbortController.signal
