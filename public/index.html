@@ -1850,8 +1850,12 @@ async function toggleDialogRecording() {
 }
 
 // ===== TTS (Web Audio API for mobile compatibility) =====
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let audioContext = null;
 let currentSource = null;
+let currentAudioEl = null;   // HTMLAudioElement currently playing (iOS path)
+let audioUnlocked = false;
 const ttsCache = new Map();
 let ttsAbortController = null;
 let ttsPlaying = false;
@@ -1863,16 +1867,37 @@ function getAudioContext() {
   return audioContext;
 }
 
-// AudioContext must be resumed from a user gesture on mobile.
-// Once resumed, it stays in 'running' state permanently.
-document.addEventListener('click', () => {
+// Unlock audio on first user gesture.
+// AudioContext must be resumed from a gesture on mobile.
+// On iOS, we also play a tiny silent Audio element so that future
+// programmatic HTMLAudioElement.play() calls work (needed for auto-speak).
+function unlockAudio() {
   const ctx = getAudioContext();
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-});
-document.addEventListener('touchend', () => {
-  const ctx = getAudioContext();
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-}, { passive: true });
+
+  if (!audioUnlocked && isIOS) {
+    // Push a silent buffer through AudioContext to fully initialise it
+    try {
+      const b = ctx.createBuffer(1, 1, 22050);
+      const s = ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch (e) {}
+    // Unlock HTMLAudioElement for programmatic playback
+    try {
+      const a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+      a.play().then(() => {
+        audioUnlocked = true;
+        console.log('[TTS] iOS audio unlocked');
+      }).catch(() => {});
+    } catch (e) {}
+  } else if (!audioUnlocked) {
+    audioUnlocked = true;
+  }
+}
+document.addEventListener('click', unlockAudio);
+document.addEventListener('touchend', unlockAudio, { passive: true });
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
@@ -1937,17 +1962,20 @@ async function fetchTtsBuffer(text, lang, signal, genderOverride) {
     throw new Error('TTS error: ' + res.status);
   }
   const arrayBuffer = await res.arrayBuffer();
+  if (isIOS) return arrayBuffer;            // iOS: raw MP3 for HTMLAudioElement
   const ctx = getAudioContext();
   return await ctx.decodeAudioData(arrayBuffer);
 }
 
-// Play an AudioBuffer, returns a promise that resolves when playback ends
-function playBufferAsync(audioBuffer, signal) {
+// Play audio data, returns a promise that resolves when playback ends.
+// On iOS uses HTMLAudioElement (bypasses AudioContext suspension issues).
+function playBufferAsync(buffer, signal) {
+  if (isIOS) return playBufferIOS(buffer, signal);
   return new Promise((resolve, reject) => {
     if (signal && signal.aborted) { reject(new Error('aborted')); return; }
     const ctx = getAudioContext();
     const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
+    source.buffer = buffer;
     source.connect(ctx.destination);
     const onAbort = () => {
       try { source.stop(); } catch(e) {}
@@ -1964,9 +1992,45 @@ function playBufferAsync(audioBuffer, signal) {
   });
 }
 
+// iOS: play raw MP3 ArrayBuffer via HTMLAudioElement
+function playBufferIOS(arrayBuffer, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal && signal.aborted) { reject(new Error('aborted')); return; }
+    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      if (currentAudioEl === audio) currentAudioEl = null;
+    };
+    const onAbort = () => {
+      try { audio.pause(); audio.currentTime = 0; } catch(e) {}
+      cleanup();
+      reject(new Error('aborted'));
+    };
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+    audio.onended = () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      cleanup();
+      resolve();
+    };
+    audio.onerror = () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      cleanup();
+      reject(new Error('Audio playback error'));
+    };
+    currentAudioEl = audio;
+    audio.play().catch(err => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      cleanup();
+      reject(err);
+    });
+  });
+}
+
 async function speakText(text, lang, btn, genderOverride) {
   // If audio is playing, stop it (toggle behavior)
-  if (currentSource || ttsPlaying || (window.speechSynthesis && window.speechSynthesis.speaking)) {
+  if (currentSource || currentAudioEl || ttsPlaying || (window.speechSynthesis && window.speechSynthesis.speaking)) {
     stopAudio();
     return;
   }
@@ -1979,9 +2043,12 @@ async function speakText(text, lang, btn, genderOverride) {
   const voice = genderOverride || voiceGender;
 
   try {
-    const ctx = getAudioContext();
-    await ctx.resume();
-    if (ctx.state !== 'running') throw new Error('AudioContext suspended');
+    // On iOS we use HTMLAudioElement — no AudioContext needed for playback
+    if (!isIOS) {
+      const ctx = getAudioContext();
+      await ctx.resume();
+      if (ctx.state !== 'running') throw new Error('AudioContext suspended');
+    }
 
     // Check full-text cache first
     const fullCacheKey = text + '|' + voice + '|' + ttsLang;
@@ -2142,6 +2209,11 @@ function stopAudio() {
   if (currentSource) {
     try { currentSource.stop(); } catch(e) {}
     currentSource = null;
+  }
+  // Stop iOS HTMLAudioElement
+  if (currentAudioEl) {
+    try { currentAudioEl.pause(); currentAudioEl.currentTime = 0; } catch(e) {}
+    currentAudioEl = null;
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSpeakingState();
