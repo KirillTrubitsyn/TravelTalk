@@ -1389,6 +1389,7 @@ async function translateText() {
     const r = parseTranslateResult(raw);
     const toLang = getOtherLang(r.from);
     document.getElementById('textResultText').textContent = r.text;
+    document.getElementById('textResultText').dataset.lang = LANGS[toLang].tts;
     document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
   } catch (e) {
@@ -1474,6 +1475,7 @@ async function translatePhoto() {
     }
     if (transMatch) {
       document.getElementById('photoTransText').textContent = transMatch[1].trim();
+      document.getElementById('photoTransText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('photoTransResult').classList.add('visible');
     }
   } catch (e) {
@@ -1548,7 +1550,9 @@ function toggleVoiceRecording() {
       try {
         const raw = await callClaude(getAutoTranslatePrompt(), finalText.trim(), 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
+        const toLang = getOtherLang(r.from);
         document.getElementById('voiceResultText').textContent = r.text;
+        document.getElementById('voiceResultText').dataset.lang = LANGS[toLang].tts;
         document.getElementById('voiceResult').classList.add('visible');
         flipVoiceLang();
       } catch (e) {
@@ -1764,7 +1768,7 @@ async function speakText(text, lang, btn) {
   clearSpeakingState();
   if (btn) btn.classList.add('speaking');
 
-  const cacheKey = text + '|' + voiceGender;
+  const cacheKey = text + '|' + voiceGender + '|' + lang;
 
   try {
     let audioBuffer;
@@ -1774,7 +1778,7 @@ async function speakText(text, lang, btn) {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: voiceGender })
+        body: JSON.stringify({ text, voice: voiceGender, lang: lang })
       });
 
       if (!res.ok) throw new Error('TTS error');
@@ -1820,8 +1824,10 @@ async function speakText(text, lang, btn) {
 }
 
 function speakResult(elementId, btn) {
-  const text = document.getElementById(elementId).textContent;
-  speakText(text, LANGS[targetLang].tts, btn);
+  const el = document.getElementById(elementId);
+  const text = el.textContent;
+  const lang = el.dataset.lang || LANGS[targetLang].tts;
+  speakText(text, lang, btn);
 }
 
 if ('speechSynthesis' in window) {
@@ -2041,6 +2047,7 @@ async function translateFile() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'API error');
       document.getElementById('fileResultText').textContent = data.text;
+      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
 
@@ -2061,6 +2068,7 @@ async function translateFile() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'API error');
       document.getElementById('fileResultText').textContent = data.text;
+      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
 
@@ -2111,6 +2119,7 @@ async function translateFile() {
       }
 
       document.getElementById('fileResultText').textContent = results.join('\n');
+      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
     }

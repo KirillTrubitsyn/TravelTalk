@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'ElevenLabs API key not configured' });
   }
 
-  const { text, voice } = req.body;
+  const { text, voice, lang } = req.body;
   if (!text) {
     return res.status(400).json({ error: 'Text is required' });
   }
@@ -31,6 +31,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           text,
           model_id: 'eleven_turbo_v2_5',
+          ...(lang ? { language_code: lang.split('-')[0] } : {}),
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
