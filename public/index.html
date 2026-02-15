@@ -1504,13 +1504,10 @@ function toggleVoiceRecording() {
 
   if (voiceRecording) { if (recognition) recognition.stop(); return; }
 
-  // Stop any playing audio and suspend AudioContext to free audio hardware for mic
+  // Stop any playing audio so it doesn't interfere with recording
   stopAudio();
-  if (audioContext && audioContext.state === 'running') {
-    audioContext.suspend().catch(() => {});
-  }
 
-  // Abort previous recognition instance to release resources
+  // Abort previous recognition instance to release mic resources
   if (recognition) {
     try { recognition.abort(); } catch(e) {}
     recognition = null;
@@ -1653,13 +1650,10 @@ function toggleDialogRecording() {
 
   if (dialogRecording) { if (recognition) recognition.stop(); return; }
 
-  // Stop any playing audio and suspend AudioContext to free audio hardware for mic
+  // Stop any playing audio so it doesn't interfere with recording
   stopAudio();
-  if (audioContext && audioContext.state === 'running') {
-    audioContext.suspend().catch(() => {});
-  }
 
-  // Abort previous recognition instance to release resources
+  // Abort previous recognition instance to release mic resources
   if (recognition) {
     try { recognition.abort(); } catch(e) {}
     recognition = null;
