@@ -1858,9 +1858,12 @@ async function speakText(text, lang, btn) {
     if ('speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance(text);
       u.lang = lang; u.rate = 0.9;
+      const baseLang = lang.split('-')[0];
       const voices = window.speechSynthesis.getVoices();
-      const match = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-      if (match) u.voice = match;
+      const match = voices.find(v => v.lang === lang)
+        || voices.find(v => v.lang.startsWith(baseLang + '-'))
+        || voices.find(v => v.lang.startsWith(baseLang));
+      if (match) { u.voice = match; u.lang = match.lang; }
       if (btn) { btn.classList.add('speaking'); u.onend = clearSpeakingState; }
       showGlobalStop();
       window.speechSynthesis.speak(u);
