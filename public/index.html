@@ -1330,24 +1330,25 @@ async function callTranslate(systemPrompt, userContent, maxTokens, signal) {
 }
 
 function getAutoTranslatePrompt() {
-  return 'You are a professional translator. The user has a language pair: ' + getSourceName() + ' and ' + getTargetName() + '. Auto-detect the language of the input text. If it is ' + getSourceName() + ', translate to ' + getTargetName() + '. If it is ' + getTargetName() + ', translate to ' + getSourceName() + '. If it is neither, translate to ' + getTargetName() + '. IMPORTANT: Always provide a proper semantic translation of the meaning. Never transliterate or write words phonetically in another script. For example, German "Flughafen" must be translated to Russian "аэропорт", not transliterated as "Флюгхафен". Reply ONLY with this JSON: {"from":"LANG_CODE","text":"TRANSLATED_TEXT"} where LANG_CODE is one of: ' + Object.keys(LANGS).join(', ') + '. No markdown, no explanation, no conversation.';
+  return 'You are a professional translator. The user has a language pair: ' + getSourceName() + ' and ' + getTargetName() + '. Auto-detect the language of the input text. If it is ' + getSourceName() + ', translate to ' + getTargetName() + '. If it is ' + getTargetName() + ', translate to ' + getSourceName() + '. If it is neither, translate to ' + getTargetName() + '. IMPORTANT: Always provide a proper semantic translation of the meaning. Never transliterate or write words phonetically in another script. For example, German "Flughafen" must be translated to Russian "аэропорт", not transliterated as "Флюгхафен". CRITICAL: Translate the COMPLETE input text including ALL sentences as a single unit. Never skip, omit, or drop any sentence. Every sentence in the input must appear translated in the output. Reply ONLY with this JSON: {"from":"LANG_CODE","text":"TRANSLATED_TEXT"} where LANG_CODE is one of: ' + Object.keys(LANGS).join(', ') + '. No markdown, no explanation.';
 }
 
 function parseTranslateResult(raw) {
   try {
     const json = JSON.parse(raw);
-    return { from: json.from, text: json.text };
-  } catch (e) {
-    // Try to extract JSON from response that has extra text (e.g. "thought" prefix)
-    const m = raw.match(/\{[\s\S]*"from"\s*:\s*"[^"]+"\s*,\s*"text"\s*:\s*"[\s\S]*?"\s*\}/);
-    if (m) {
-      try {
-        const json = JSON.parse(m[0]);
-        return { from: json.from, text: json.text };
-      } catch (e2) {}
-    }
-    return { from: sourceLang, text: raw };
+    if (json.text) return { from: json.from, text: json.text };
+  } catch (e) {}
+  // Try to extract JSON from response that has extra text (e.g. thinking prefix)
+  // Match {"from":"...","text":"..."} or {"text":"...","from":"..."} precisely
+  const m = raw.match(/\{\s*"from"\s*:\s*"[^"]+"\s*,\s*"text"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"\s*\}/) ||
+            raw.match(/\{\s*"text"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"\s*,\s*"from"\s*:\s*"[^"]+"\s*\}/);
+  if (m) {
+    try {
+      const json = JSON.parse(m[0]);
+      if (json.text) return { from: json.from, text: json.text };
+    } catch (e2) {}
   }
+  return { from: sourceLang, text: raw };
 }
 
 function getOtherLang(detectedLang) {
