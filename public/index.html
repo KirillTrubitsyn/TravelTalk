@@ -1418,6 +1418,18 @@ function toggleVoiceRecording() {
 
   if (voiceRecording) { if (recognition) recognition.stop(); return; }
 
+  // Stop any playing audio and suspend AudioContext to free audio hardware for mic
+  stopAudio();
+  if (audioContext && audioContext.state === 'running') {
+    audioContext.suspend().catch(() => {});
+  }
+
+  // Abort previous recognition instance to release resources
+  if (recognition) {
+    try { recognition.abort(); } catch(e) {}
+    recognition = null;
+  }
+
   recognition = getSpeechRecognition();
   if (!recognition) return;
 
@@ -1552,6 +1564,18 @@ function toggleDialogRecording() {
   const mic = document.getElementById('dialogMic');
 
   if (dialogRecording) { if (recognition) recognition.stop(); return; }
+
+  // Stop any playing audio and suspend AudioContext to free audio hardware for mic
+  stopAudio();
+  if (audioContext && audioContext.state === 'running') {
+    audioContext.suspend().catch(() => {});
+  }
+
+  // Abort previous recognition instance to release resources
+  if (recognition) {
+    try { recognition.abort(); } catch(e) {}
+    recognition = null;
+  }
 
   recognition = getSpeechRecognition();
   if (!recognition) return;
