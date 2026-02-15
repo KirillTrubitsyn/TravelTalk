@@ -21,6 +21,17 @@ export default async function handler(req, res) {
   };
   const voiceName = voices[voice] || voices.female;
 
+  // Map BCP-47 language codes to language names for TTS instruction
+  const langNames = {
+    'ru-RU': 'Russian',
+    'en-US': 'English',
+    'de-DE': 'German',
+    'fr-FR': 'French',
+    'pt-BR': 'Brazilian Portuguese'
+  };
+  const ttsLang = lang || 'en-US';
+  const langName = langNames[ttsLang] || ttsLang;
+
   try {
     const response = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
@@ -31,6 +42,9 @@ export default async function handler(req, res) {
           'x-goog-api-key': apiKey
         },
         body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: 'Read the following text aloud in ' + langName + '. Pronounce it naturally as a native ' + langName + ' speaker.' }]
+          },
           contents: [{
             parts: [{
               text: text
