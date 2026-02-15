@@ -1228,7 +1228,6 @@ function toggleVoiceGender() {
 function updateVoiceGenderUI() {
   const btn = document.getElementById('voiceGenderBtn');
   const label = document.getElementById('voiceGenderLabel');
-  if (!btn || !label) return;
   btn.classList.remove('male', 'female');
   btn.classList.add(voiceGender);
   label.textContent = voiceGender === 'female' ? 'Жен' : 'Муж';
@@ -1420,10 +1419,9 @@ async function translateText() {
     );
     const r = parseTranslateResult(raw);
     const toLang = getOtherLang(r.from);
-    const toLangInfo = LANGS[toLang] || LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
     document.getElementById('textResultText').textContent = r.text;
-    document.getElementById('textResultText').dataset.lang = toLangInfo.tts;
-    document.getElementById('textResultLabel').textContent = toLangInfo.name;
+    document.getElementById('textResultText').dataset.lang = LANGS[toLang].tts;
+    document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
   } catch (e) {
     if (e.name !== 'AbortError') {
@@ -1479,9 +1477,8 @@ async function translatePhoto() {
   currentAbortController = new AbortController();
 
   try {
-    const base64 = (imgSrc.split(',')[1]) || '';
-    const mediaType = ((imgSrc.split(';')[0] || '').split(':')[1]) || 'image/jpeg';
-    if (!base64) { showToast('Не удалось обработать изображение'); throw new Error('Invalid image data'); }
+    const base64 = imgSrc.split(',')[1];
+    const mediaType = imgSrc.split(';')[0].split(':')[1];
 
     const res = await fetch('/api/translate', {
       method: 'POST',
@@ -1503,13 +1500,13 @@ async function translatePhoto() {
     const ocrMatch = text.match(/OCR:\s*([\s\S]*?)(?=TRANSLATION:|$)/i);
     const transMatch = text.match(/TRANSLATION:\s*([\s\S]*)/i);
 
-    if (ocrMatch && ocrMatch[1]) {
+    if (ocrMatch) {
       document.getElementById('photoOcrText').textContent = ocrMatch[1].trim();
       document.getElementById('photoOcrResult').classList.add('visible');
     }
-    if (transMatch && transMatch[1]) {
+    if (transMatch) {
       document.getElementById('photoTransText').textContent = transMatch[1].trim();
-      document.getElementById('photoTransText').dataset.lang = (LANGS[targetLang] || { tts: 'en-US' }).tts;
+      document.getElementById('photoTransText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('photoTransResult').classList.add('visible');
     }
   } catch (e) {
@@ -1566,8 +1563,7 @@ async function toggleVoiceRecording() {
   recognition = getSpeechRecognition();
   if (!recognition) return;
 
-  const voiceLangInfo = LANGS[voiceNextLang] || LANGS[sourceLang] || { speech: 'ru-RU' };
-  recognition.lang = voiceLangInfo.speech;
+  recognition.lang = LANGS[voiceNextLang].speech;
   voiceRecording = true;
   mic.classList.add('recording');
   status.textContent = 'Говорите...';
@@ -1578,10 +1574,8 @@ async function toggleVoiceRecording() {
   recognition.onresult = (e) => {
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const result = e.results[i];
-      if (!result || !result[0]) continue;
-      if (result.isFinal) finalText += result[0].transcript;
-      else interim += result[0].transcript;
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
     }
     document.getElementById('voiceTranscript').textContent = finalText + interim;
     document.getElementById('voiceTranscript').classList.add('visible');
@@ -1599,9 +1593,8 @@ async function toggleVoiceRecording() {
         const raw = await callTranslate(getAutoTranslatePrompt(), finalText.trim(), 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
         const toLang = getOtherLang(r.from);
-        const toLangInfo = LANGS[toLang] || LANGS[targetLang] || { tts: 'en-US' };
         document.getElementById('voiceResultText').textContent = r.text;
-        document.getElementById('voiceResultText').dataset.lang = toLangInfo.tts;
+        document.getElementById('voiceResultText').dataset.lang = LANGS[toLang].tts;
         document.getElementById('voiceResult').classList.add('visible');
         flipVoiceLang();
       } catch (e) {
@@ -1633,28 +1626,26 @@ function toggleAutoSpeak() {
 
 function addDialogMessage(text, langCode, autoPlay) {
   const container = document.getElementById('dialogMessages');
-  if (!container) return;
   if (dialogFirstMessage) { container.innerHTML = ''; dialogFirstMessage = false; }
 
-  const lang = LANGS[langCode] || LANGS[targetLang] || { name: 'Translation', flagCode: 'gb', tts: 'en-US' };
+  const lang = LANGS[langCode];
   const isSource = (langCode === sourceLang);
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble ' + (isSource ? 'msg-source' : 'msg-target');
 
-  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
 
   bubble.innerHTML =
-    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + escapeHtml(lang.name) + '</div>' +
-    '<div class="msg-text">' + escapeHtml(text) + '</div>' +
-    '<button class="msg-play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
-
-  const playBtn = bubble.querySelector('.msg-play');
-  playBtn.addEventListener('click', function() { speakText(text, lang.tts, this); });
+    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + lang.name + '</div>' +
+    '<div class="msg-text">' + text + '</div>' +
+    '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\', this)">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
 
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
 
   if (autoPlay && autoSpeak) {
+    const playBtn = bubble.querySelector('.msg-play');
     speakText(text, lang.tts, playBtn);
   }
 }
@@ -1711,6 +1702,9 @@ async function toggleDialogRecording() {
   const mic = document.getElementById('dialogMic');
 
   if (dialogRecording) {
+    // User gesture context — resume AudioContext now so auto-speak works in onend
+    // (SpeechRecognition interrupts AudioContext on mobile, leaving it suspended)
+    try { getAudioContext().resume(); } catch(e) {}
     if (recognition) recognition.stop();
     return;
   }
@@ -1740,8 +1734,7 @@ async function toggleDialogRecording() {
   // Use continuous mode so recognition doesn't cut off mid-phrase on mobile;
   // user explicitly stops by tapping mic again
   recognition.continuous = true;
-  const dialogLangInfo = LANGS[dialogNextLang] || LANGS[sourceLang] || { speech: 'ru-RU' };
-  recognition.lang = dialogLangInfo.speech;
+  recognition.lang = LANGS[dialogNextLang].speech;
   dialogRecording = true;
   mic.classList.add('recording');
 
@@ -1749,9 +1742,7 @@ async function toggleDialogRecording() {
 
   recognition.onresult = (e) => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const result = e.results[i];
-      if (!result || !result[0]) continue;
-      if (result.isFinal) finalText += result[0].transcript;
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
     }
   };
 
@@ -1801,20 +1792,30 @@ async function toggleDialogRecording() {
   recognition.start();
 }
 
-// ===== TTS =====
-let ttsLoading = false;
-let _lastBlobUrl = null;
-let _ttsAbort = null;
+// ===== TTS (Web Audio API for mobile compatibility) =====
+let audioContext = null;
+let currentSource = null;
+let ttsLoading = false;       // true while TTS fetch is in-flight
+let ttsAbort = null;          // AbortController for in-flight TTS fetch
+const ttsCache = new Map();
 
-// Persistent Audio element – reused across plays.
-let _audioEl = null;
-function getAudioEl() {
-  if (!_audioEl) {
-    _audioEl = new Audio();
-    _audioEl.setAttribute('playsinline', '');
+function getAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
-  return _audioEl;
+  return audioContext;
 }
+
+// AudioContext must be resumed from a user gesture on mobile.
+// Once resumed, it stays in 'running' state permanently.
+document.addEventListener('click', () => {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+});
+document.addEventListener('touchend', () => {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+}, { passive: true });
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
@@ -1828,106 +1829,123 @@ function showGlobalStop() {
   if (g) g.classList.add('visible');
 }
 
-function speakText(text, lang, btn) {
-  const audio = getAudioEl();
-  // Toggle: if already playing or loading, stop
-  if (ttsLoading || (!audio.paused && !audio.ended) || (window.speechSynthesis && window.speechSynthesis.speaking)) {
+async function speakText(text, lang, btn) {
+  // If audio is playing or loading, stop/cancel it (toggle behavior)
+  if (ttsLoading || currentSource || (window.speechSynthesis && window.speechSynthesis.speaking)) {
     stopAudio();
     return;
   }
 
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  // Stop any currently playing audio/speech
+  stopAudio();
+
   clearSpeakingState();
 
   const ttsLang = lang || 'en-US';
-  if (btn) btn.classList.add('tts-loading');
+  const cacheKey = text + '|' + voiceGender + '|' + ttsLang;
+  const cached = ttsCache.has(cacheKey);
+
+  // Show loading spinner on button while fetching, or speaking state if cached
+  if (btn) btn.classList.add(cached ? 'speaking' : 'tts-loading');
+
+  // Mark as loading to prevent duplicate requests
   ttsLoading = true;
   showGlobalStop();
 
-  // Revoke previous blob URL to free memory
-  if (_lastBlobUrl) { URL.revokeObjectURL(_lastBlobUrl); _lastBlobUrl = null; }
+  // Pre-warm AudioContext so it's ready by the time playback starts
+  try { await getAudioContext().resume(); } catch(e) {}
 
-  // Abort previous request if still in flight
-  if (_ttsAbort) { _ttsAbort.abort(); }
-  _ttsAbort = new AbortController();
-
-  // Fetch audio via POST, then play via Audio element
-  fetch('/api/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, voice: voiceGender, lang: ttsLang }),
-    signal: _ttsAbort.signal
-  }).then(r => {
-    _ttsAbort = null;
-    if (!r.ok) {
-      return r.json().catch(() => ({})).then(j => {
-        throw new Error(j.error || 'TTS ошибка ' + r.status);
+  try {
+    let audioBuffer;
+    if (cached) {
+      audioBuffer = ttsCache.get(cacheKey);
+    } else {
+      ttsAbort = new AbortController();
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice: voiceGender, lang: ttsLang }),
+        signal: ttsAbort.signal
       });
+      ttsAbort = null;
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.warn('[TTS] TTS error:', res.status, errBody);
+        throw new Error('TTS error: ' + res.status);
+      }
+
+      const arrayBuffer = await res.arrayBuffer();
+      const ctx = getAudioContext();
+      audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      ttsCache.set(cacheKey, audioBuffer);
     }
-    return r.blob();
-  }).then(blob => {
-    _lastBlobUrl = URL.createObjectURL(blob);
-    audio.onended = () => clearSpeakingState();
-    audio.onerror = (ev) => {
-      var code = audio.error ? audio.error.code : '?';
-      console.warn('[TTS] audio error, code=' + code);
-      ttsLoading = false;
-      clearSpeakingState();
-      fallbackSpeechSynthesis(text, ttsLang, btn);
+
+    const ctx = getAudioContext();
+    await ctx.resume();
+    // If AudioContext is still suspended (e.g. no user gesture), fall to speechSynthesis
+    if (ctx.state !== 'running') throw new Error('AudioContext suspended');
+
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(ctx.destination);
+    source.onended = () => {
+      if (currentSource === source) {
+        currentSource = null;
+        clearSpeakingState();
+      }
     };
-    audio.src = _lastBlobUrl;
-    return audio.play();
-  }).then(() => {
+
+    // Switch from loading spinner to speaking state
     if (btn) { btn.classList.remove('tts-loading'); btn.classList.add('speaking'); }
+
+    currentSource = source;
     ttsLoading = false;
     showGlobalStop();
-  }).catch(e => {
+    source.start(0);
+  } catch (e) {
     ttsLoading = false;
-    _ttsAbort = null;
-    if (e.name === 'AbortError') { clearSpeakingState(); return; }
-    console.warn('[TTS] error:', e.name, e.message);
-    clearSpeakingState();
-    if (e.name === 'NotAllowedError') {
-      // Autoplay blocked — try fallback directly
-      fallbackSpeechSynthesis(text, ttsLang, btn);
+    // If aborted by user, just clean up and return
+    if (e.name === 'AbortError') {
+      clearSpeakingState();
       return;
     }
-    showToast(e.message || 'Ошибка озвучки');
-    fallbackSpeechSynthesis(text, ttsLang, btn);
-  });
-}
-
-function fallbackSpeechSynthesis(text, ttsLang, btn) {
-  if (!('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = ttsLang; u.rate = 0.9;
-  const baseLang = ttsLang.split('-')[0];
-  const voices = window.speechSynthesis.getVoices();
-  const match = voices.find(v => v.lang === ttsLang && v.name.includes('Google'))
-    || voices.find(v => v.lang === ttsLang)
-    || voices.find(v => v.lang.startsWith(baseLang + '-') && v.name.includes('Google'))
-    || voices.find(v => v.lang.startsWith(baseLang + '-'))
-    || voices.find(v => v.lang.startsWith(baseLang));
-  if (match) {
-    u.voice = match; u.lang = match.lang;
-    console.log('[TTS] Browser voice:', match.name, match.lang);
-  } else {
-    console.warn('[TTS] No voice found for', ttsLang, '— available:', voices.map(v => v.lang + ':' + v.name).join(', '));
+    console.warn('[TTS] Falling back to browser speech. lang=' + ttsLang, e.message);
     clearSpeakingState();
-    showToast('Голос для этого языка недоступен');
-    return;
+    // Fallback to browser TTS
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = ttsLang; u.rate = 0.9;
+      const baseLang = ttsLang.split('-')[0];
+      const voices = window.speechSynthesis.getVoices();
+      // Prefer Google online voices for better multilingual support
+      const match = voices.find(v => v.lang === ttsLang && v.name.includes('Google'))
+        || voices.find(v => v.lang === ttsLang)
+        || voices.find(v => v.lang.startsWith(baseLang + '-') && v.name.includes('Google'))
+        || voices.find(v => v.lang.startsWith(baseLang + '-'))
+        || voices.find(v => v.lang.startsWith(baseLang));
+      if (match) {
+        u.voice = match; u.lang = match.lang;
+        console.log('[TTS] Browser voice:', match.name, match.lang);
+      } else {
+        // No matching voice found — don't speak in the wrong language
+        console.warn('[TTS] No voice found for', ttsLang, '— available:', voices.map(v => v.lang + ':' + v.name).join(', '));
+        clearSpeakingState();
+        showToast('Голос для этого языка недоступен');
+        return;
+      }
+      u.onend = () => clearSpeakingState();
+      if (btn) btn.classList.add('speaking');
+      showGlobalStop();
+      window.speechSynthesis.speak(u);
+    }
   }
-  u.onend = () => clearSpeakingState();
-  if (btn) btn.classList.add('speaking');
-  showGlobalStop();
-  window.speechSynthesis.speak(u);
 }
 
 function speakResult(elementId, btn) {
   const el = document.getElementById(elementId);
-  if (!el) return;
   const text = el.textContent;
-  const lang = el.dataset.lang || (LANGS[targetLang] || { tts: 'en-US' }).tts;
+  const lang = el.dataset.lang || LANGS[targetLang].tts;
   speakText(text, lang, btn);
 }
 
@@ -1938,26 +1956,8 @@ if ('speechSynthesis' in window) {
 
 // ===== UTILS =====
 function copyResult(elementId) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const text = el.textContent;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => showToast('Скопировано')).catch(() => {
-      fallbackCopy(text);
-    });
-  } else {
-    fallbackCopy(text);
-  }
-}
-
-function fallbackCopy(text) {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.cssText = 'position:fixed;left:-9999px';
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand('copy'); showToast('Скопировано'); } catch(e) { showToast('Не удалось скопировать'); }
-  document.body.removeChild(ta);
+  const text = document.getElementById(elementId).textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Скопировано'));
 }
 
 function showToast(msg) {
@@ -1980,13 +1980,16 @@ function stopCurrentOperation() {
 }
 
 function stopAudio() {
+  // Cancel any in-flight TTS fetch
+  if (ttsAbort) {
+    ttsAbort.abort();
+    ttsAbort = null;
+  }
   ttsLoading = false;
-  if (_ttsAbort) { _ttsAbort.abort(); _ttsAbort = null; }
-  const audio = getAudioEl();
-  audio.pause();
-  audio.removeAttribute('src');
-  audio.load();
-  if (_lastBlobUrl) { URL.revokeObjectURL(_lastBlobUrl); _lastBlobUrl = null; }
+  if (currentSource) {
+    try { currentSource.stop(); } catch(e) {}
+    currentSource = null;
+  }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSpeakingState();
 }
@@ -2034,10 +2037,9 @@ function handleFileUpload(e) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target.result;
-      if (!dataUrl) { showToast('Не удалось прочитать файл'); return; }
       uploadedFileType = 'image';
-      uploadedFileBase64 = (dataUrl.split(',')[1]) || '';
-      uploadedFileMediaType = ((dataUrl.split(';')[0] || '').split(':')[1]) || 'image/jpeg';
+      uploadedFileBase64 = dataUrl.split(',')[1];
+      uploadedFileMediaType = dataUrl.split(';')[0].split(':')[1];
       uploadedFileName = file.name;
       uploadedFileContent = '';
       showFileInfo(file.name, file.size);
@@ -2050,9 +2052,8 @@ function handleFileUpload(e) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target.result;
-      if (!dataUrl) { showToast('Не удалось прочитать файл'); return; }
       uploadedFileType = 'pdf';
-      uploadedFileBase64 = (dataUrl.split(',')[1]) || '';
+      uploadedFileBase64 = dataUrl.split(',')[1];
       uploadedFileMediaType = 'application/pdf';
       uploadedFileName = file.name;
       uploadedFileContent = '';
@@ -2170,10 +2171,9 @@ async function translateFile() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'API error');
-      const targetInfo = LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
       document.getElementById('fileResultText').textContent = data.text;
-      document.getElementById('fileResultText').dataset.lang = targetInfo.tts;
-      document.getElementById('fileResultLabel').textContent = targetInfo.name;
+      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
+      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
 
     } else if (uploadedFileType === 'pdf') {
@@ -2192,10 +2192,9 @@ async function translateFile() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'API error');
-      const pdfTargetInfo = LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
       document.getElementById('fileResultText').textContent = data.text;
-      document.getElementById('fileResultText').dataset.lang = pdfTargetInfo.tts;
-      document.getElementById('fileResultLabel').textContent = pdfTargetInfo.name;
+      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
+      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
 
     } else {
@@ -2244,10 +2243,9 @@ async function translateFile() {
         results.push(data.text);
       }
 
-      const txtTargetInfo = LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
       document.getElementById('fileResultText').textContent = results.join('\n');
-      document.getElementById('fileResultText').dataset.lang = txtTargetInfo.tts;
-      document.getElementById('fileResultLabel').textContent = txtTargetInfo.name;
+      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
+      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
     }
   } catch (e) {
