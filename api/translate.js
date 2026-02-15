@@ -75,9 +75,9 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: errorMsg });
     }
 
-    // Extract text from Gemini response
+    // Extract text from Gemini response, skipping thinking parts
     const text = data.candidates?.[0]?.content?.parts
-      ?.filter(p => p.text)
+      ?.filter(p => p.text && !p.thought)
       ?.map(p => p.text)
       ?.join('') || '';
 

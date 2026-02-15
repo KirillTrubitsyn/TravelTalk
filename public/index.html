@@ -1342,6 +1342,14 @@ function parseTranslateResult(raw) {
     const json = JSON.parse(raw);
     return { from: json.from, text: json.text };
   } catch (e) {
+    // Try to extract JSON from response that has extra text (e.g. "thought" prefix)
+    const m = raw.match(/\{[\s\S]*"from"\s*:\s*"[^"]+"\s*,\s*"text"\s*:\s*"[\s\S]*?"\s*\}/);
+    if (m) {
+      try {
+        const json = JSON.parse(m[0]);
+        return { from: json.from, text: json.text };
+      } catch (e2) {}
+    }
     return { from: sourceLang, text: raw };
   }
 }
