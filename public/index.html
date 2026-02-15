@@ -1490,6 +1490,17 @@ async function translatePhoto() {
 }
 
 // ===== SPEECH RECOGNITION =====
+async function ensureMicPermission() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    return true;
+  } catch (e) {
+    showToast('Разрешите доступ к микрофону в настройках браузера');
+    return false;
+  }
+}
+
 function getSpeechRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { showToast('Распознавание речи не поддерживается'); return null; }
@@ -1500,11 +1511,14 @@ function getSpeechRecognition() {
 }
 
 // ===== VOICE =====
-function toggleVoiceRecording() {
+async function toggleVoiceRecording() {
   const mic = document.getElementById('voiceMic');
   const status = document.getElementById('voiceStatus');
 
   if (voiceRecording) { if (recognition) recognition.stop(); return; }
+
+  // Request microphone permission before starting recognition (required on mobile)
+  if (!await ensureMicPermission()) return;
 
   // Stop any playing audio so it doesn't interfere with recording
   stopAudio();
@@ -1562,7 +1576,11 @@ function toggleVoiceRecording() {
   recognition.onerror = (e) => {
     voiceRecording = false;
     mic.classList.remove('recording');
-    status.textContent = 'Ошибка: ' + e.error;
+    if (e.error === 'not-allowed') {
+      status.textContent = 'Нет доступа к микрофону';
+    } else {
+      status.textContent = 'Ошибка: ' + e.error;
+    }
     status.classList.remove('active');
   };
 
@@ -1649,7 +1667,7 @@ async function sendDialog() {
   currentAbortController = null;
 }
 
-function toggleDialogRecording() {
+async function toggleDialogRecording() {
   const mic = document.getElementById('dialogMic');
 
   if (dialogRecording) {
@@ -1659,6 +1677,9 @@ function toggleDialogRecording() {
     if (recognition) recognition.stop();
     return;
   }
+
+  // Request microphone permission before starting recognition (required on mobile)
+  if (!await ensureMicPermission()) return;
 
   // Stop any playing audio so it doesn't interfere with recording
   stopAudio();
@@ -1730,7 +1751,9 @@ function toggleDialogRecording() {
   recognition.onerror = (e) => {
     dialogRecording = false;
     mic.classList.remove('recording');
-    if (e.error !== 'aborted') {
+    if (e.error === 'not-allowed') {
+      showToast('Разрешите доступ к микрофону в настройках браузера');
+    } else if (e.error !== 'aborted') {
       showToast('Ошибка записи: ' + e.error);
     }
   };
