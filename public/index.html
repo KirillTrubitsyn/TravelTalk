@@ -1178,23 +1178,6 @@ let dialogNextLang = 'ru';
 let voiceNextLang = 'ru';
 let voiceGender = localStorage.getItem('traveltalk_voice') || 'female';
 
-// Persistent audio element for mobile autoplay compatibility
-const audioPlayer = new Audio();
-let audioUnlocked = false;
-
-function unlockAudio() {
-  if (audioUnlocked) return;
-  audioPlayer.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-  audioPlayer.play().then(() => {
-    audioUnlocked = true;
-    audioPlayer.pause();
-    audioPlayer.currentTime = 0;
-  }).catch(() => {});
-}
-
-document.addEventListener('touchstart', unlockAudio, { passive: true });
-document.addEventListener('click', unlockAudio);
-
 function getSourceName() { return LANG_NAMES_FOR_PROMPT[sourceLang]; }
 function getTargetName() { return LANG_NAMES_FOR_PROMPT[targetLang]; }
 
@@ -1704,9 +1687,28 @@ function toggleDialogRecording() {
   recognition.start();
 }
 
-// ===== TTS =====
-let currentAudio = null;
+// ===== TTS (Web Audio API for mobile compatibility) =====
+let audioContext = null;
+let currentSource = null;
 const ttsCache = new Map();
+
+function getAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+}
+
+// AudioContext must be resumed from a user gesture on mobile.
+// Once resumed, it stays in 'running' state permanently.
+document.addEventListener('click', () => {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+});
+document.addEventListener('touchend', () => {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+}, { passive: true });
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
@@ -1715,15 +1717,14 @@ function clearSpeakingState() {
 }
 
 async function speakText(text, lang, btn) {
-  // If same audio is playing, stop it (toggle behavior)
-  if (currentAudio && !currentAudio.paused) {
+  // If audio is playing, stop it (toggle behavior)
+  if (currentSource) {
     stopAudio();
     return;
   }
 
-  // Stop any currently playing audio
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  // Stop any currently playing audio/speech
+  stopAudio();
 
   clearSpeakingState();
   if (btn) btn.classList.add('speaking');
@@ -1731,9 +1732,9 @@ async function speakText(text, lang, btn) {
   const cacheKey = text + '|' + voiceGender;
 
   try {
-    let url;
+    let audioBuffer;
     if (ttsCache.has(cacheKey)) {
-      url = ttsCache.get(cacheKey);
+      audioBuffer = ttsCache.get(cacheKey);
     } else {
       const res = await fetch('/api/tts', {
         method: 'POST',
@@ -1743,18 +1744,29 @@ async function speakText(text, lang, btn) {
 
       if (!res.ok) throw new Error('TTS error');
 
-      const blob = await res.blob();
-      url = URL.createObjectURL(blob);
-      ttsCache.set(cacheKey, url);
+      const arrayBuffer = await res.arrayBuffer();
+      const ctx = getAudioContext();
+      audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      ttsCache.set(cacheKey, audioBuffer);
     }
 
-    audioPlayer.onended = () => { currentAudio = null; clearSpeakingState(); };
-    audioPlayer.onerror = () => { currentAudio = null; clearSpeakingState(); };
-    audioPlayer.src = url;
-    currentAudio = audioPlayer;
+    const ctx = getAudioContext();
+    await ctx.resume();
+
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(ctx.destination);
+    source.onended = () => {
+      if (currentSource === source) {
+        currentSource = null;
+        clearSpeakingState();
+      }
+    };
+
+    currentSource = source;
     const ttsStop = document.getElementById('ttsStopBtn');
     if (ttsStop) ttsStop.style.display = 'flex';
-    await audioPlayer.play();
+    source.start(0);
   } catch (e) {
     clearSpeakingState();
     // Fallback to browser TTS
@@ -1808,10 +1820,9 @@ function stopCurrentOperation() {
 }
 
 function stopAudio() {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
+  if (currentSource) {
+    try { currentSource.stop(); } catch(e) {}
+    currentSource = null;
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSpeakingState();
