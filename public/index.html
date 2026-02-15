@@ -1227,6 +1227,17 @@ function updateLangs() {
   document.getElementById('langToFlag').innerHTML = flagImg(LANGS[targetLang].flagCode);
   dialogNextLang = sourceLang;
   voiceNextLang = sourceLang;
+  // Clear dialog history on language change
+  dialogFirstMessage = true;
+  const dialogContainer = document.getElementById('dialogMessages');
+  if (dialogContainer) {
+    dialogContainer.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Нажмите на микрофон и произнесите фразу.<br>Перевод будет озвучен автоматически.</div>';
+  }
+  // Clear voice mode results
+  const voiceTranscript = document.getElementById('voiceTranscript');
+  if (voiceTranscript) { voiceTranscript.textContent = ''; voiceTranscript.classList.remove('visible'); }
+  const voiceResult = document.getElementById('voiceResult');
+  if (voiceResult) { voiceResult.classList.remove('visible'); }
   updateDialogLangIndicator();
   updateVoiceLangIndicator();
 }
