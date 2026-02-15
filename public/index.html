@@ -1228,6 +1228,7 @@ function toggleVoiceGender() {
 function updateVoiceGenderUI() {
   const btn = document.getElementById('voiceGenderBtn');
   const label = document.getElementById('voiceGenderLabel');
+  if (!btn || !label) return;
   btn.classList.remove('male', 'female');
   btn.classList.add(voiceGender);
   label.textContent = voiceGender === 'female' ? 'Жен' : 'Муж';
@@ -1419,9 +1420,10 @@ async function translateText() {
     );
     const r = parseTranslateResult(raw);
     const toLang = getOtherLang(r.from);
+    const toLangInfo = LANGS[toLang] || LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
     document.getElementById('textResultText').textContent = r.text;
-    document.getElementById('textResultText').dataset.lang = LANGS[toLang].tts;
-    document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
+    document.getElementById('textResultText').dataset.lang = toLangInfo.tts;
+    document.getElementById('textResultLabel').textContent = toLangInfo.name;
     document.getElementById('textResult').classList.add('visible');
   } catch (e) {
     if (e.name !== 'AbortError') {
@@ -1477,8 +1479,9 @@ async function translatePhoto() {
   currentAbortController = new AbortController();
 
   try {
-    const base64 = imgSrc.split(',')[1];
-    const mediaType = imgSrc.split(';')[0].split(':')[1];
+    const base64 = (imgSrc.split(',')[1]) || '';
+    const mediaType = ((imgSrc.split(';')[0] || '').split(':')[1]) || 'image/jpeg';
+    if (!base64) { showToast('Не удалось обработать изображение'); throw new Error('Invalid image data'); }
 
     const res = await fetch('/api/translate', {
       method: 'POST',
@@ -1500,13 +1503,13 @@ async function translatePhoto() {
     const ocrMatch = text.match(/OCR:\s*([\s\S]*?)(?=TRANSLATION:|$)/i);
     const transMatch = text.match(/TRANSLATION:\s*([\s\S]*)/i);
 
-    if (ocrMatch) {
+    if (ocrMatch && ocrMatch[1]) {
       document.getElementById('photoOcrText').textContent = ocrMatch[1].trim();
       document.getElementById('photoOcrResult').classList.add('visible');
     }
-    if (transMatch) {
+    if (transMatch && transMatch[1]) {
       document.getElementById('photoTransText').textContent = transMatch[1].trim();
-      document.getElementById('photoTransText').dataset.lang = LANGS[targetLang].tts;
+      document.getElementById('photoTransText').dataset.lang = (LANGS[targetLang] || { tts: 'en-US' }).tts;
       document.getElementById('photoTransResult').classList.add('visible');
     }
   } catch (e) {
@@ -1563,7 +1566,8 @@ async function toggleVoiceRecording() {
   recognition = getSpeechRecognition();
   if (!recognition) return;
 
-  recognition.lang = LANGS[voiceNextLang].speech;
+  const voiceLangInfo = LANGS[voiceNextLang] || LANGS[sourceLang] || { speech: 'ru-RU' };
+  recognition.lang = voiceLangInfo.speech;
   voiceRecording = true;
   mic.classList.add('recording');
   status.textContent = 'Говорите...';
@@ -1574,8 +1578,10 @@ async function toggleVoiceRecording() {
   recognition.onresult = (e) => {
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
-      else interim += e.results[i][0].transcript;
+      const result = e.results[i];
+      if (!result || !result[0]) continue;
+      if (result.isFinal) finalText += result[0].transcript;
+      else interim += result[0].transcript;
     }
     document.getElementById('voiceTranscript').textContent = finalText + interim;
     document.getElementById('voiceTranscript').classList.add('visible');
@@ -1593,8 +1599,9 @@ async function toggleVoiceRecording() {
         const raw = await callTranslate(getAutoTranslatePrompt(), finalText.trim(), 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
         const toLang = getOtherLang(r.from);
+        const toLangInfo = LANGS[toLang] || LANGS[targetLang] || { tts: 'en-US' };
         document.getElementById('voiceResultText').textContent = r.text;
-        document.getElementById('voiceResultText').dataset.lang = LANGS[toLang].tts;
+        document.getElementById('voiceResultText').dataset.lang = toLangInfo.tts;
         document.getElementById('voiceResult').classList.add('visible');
         flipVoiceLang();
       } catch (e) {
@@ -1626,26 +1633,28 @@ function toggleAutoSpeak() {
 
 function addDialogMessage(text, langCode, autoPlay) {
   const container = document.getElementById('dialogMessages');
+  if (!container) return;
   if (dialogFirstMessage) { container.innerHTML = ''; dialogFirstMessage = false; }
 
-  const lang = LANGS[langCode];
+  const lang = LANGS[langCode] || LANGS[targetLang] || { name: 'Translation', flagCode: 'gb', tts: 'en-US' };
   const isSource = (langCode === sourceLang);
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble ' + (isSource ? 'msg-source' : 'msg-target');
 
-  const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   bubble.innerHTML =
-    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + lang.name + '</div>' +
-    '<div class="msg-text">' + text + '</div>' +
-    '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\', this)">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
+    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + escapeHtml(lang.name) + '</div>' +
+    '<div class="msg-text">' + escapeHtml(text) + '</div>' +
+    '<button class="msg-play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
+
+  const playBtn = bubble.querySelector('.msg-play');
+  playBtn.addEventListener('click', function() { speakText(text, lang.tts, this); });
 
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
 
   if (autoPlay && autoSpeak) {
-    const playBtn = bubble.querySelector('.msg-play');
     speakText(text, lang.tts, playBtn);
   }
 }
@@ -1731,7 +1740,8 @@ async function toggleDialogRecording() {
   // Use continuous mode so recognition doesn't cut off mid-phrase on mobile;
   // user explicitly stops by tapping mic again
   recognition.continuous = true;
-  recognition.lang = LANGS[dialogNextLang].speech;
+  const dialogLangInfo = LANGS[dialogNextLang] || LANGS[sourceLang] || { speech: 'ru-RU' };
+  recognition.lang = dialogLangInfo.speech;
   dialogRecording = true;
   mic.classList.add('recording');
 
@@ -1739,7 +1749,9 @@ async function toggleDialogRecording() {
 
   recognition.onresult = (e) => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      const result = e.results[i];
+      if (!result || !result[0]) continue;
+      if (result.isFinal) finalText += result[0].transcript;
     }
   };
 
@@ -1912,8 +1924,9 @@ function fallbackSpeechSynthesis(text, ttsLang, btn) {
 
 function speakResult(elementId, btn) {
   const el = document.getElementById(elementId);
+  if (!el) return;
   const text = el.textContent;
-  const lang = el.dataset.lang || LANGS[targetLang].tts;
+  const lang = el.dataset.lang || (LANGS[targetLang] || { tts: 'en-US' }).tts;
   speakText(text, lang, btn);
 }
 
@@ -1924,8 +1937,26 @@ if ('speechSynthesis' in window) {
 
 // ===== UTILS =====
 function copyResult(elementId) {
-  const text = document.getElementById(elementId).textContent;
-  navigator.clipboard.writeText(text).then(() => showToast('Скопировано'));
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const text = el.textContent;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast('Скопировано')).catch(() => {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('Скопировано'); } catch(e) { showToast('Не удалось скопировать'); }
+  document.body.removeChild(ta);
 }
 
 function showToast(msg) {
@@ -2001,9 +2032,10 @@ function handleFileUpload(e) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target.result;
+      if (!dataUrl) { showToast('Не удалось прочитать файл'); return; }
       uploadedFileType = 'image';
-      uploadedFileBase64 = dataUrl.split(',')[1];
-      uploadedFileMediaType = dataUrl.split(';')[0].split(':')[1];
+      uploadedFileBase64 = (dataUrl.split(',')[1]) || '';
+      uploadedFileMediaType = ((dataUrl.split(';')[0] || '').split(':')[1]) || 'image/jpeg';
       uploadedFileName = file.name;
       uploadedFileContent = '';
       showFileInfo(file.name, file.size);
@@ -2016,8 +2048,9 @@ function handleFileUpload(e) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target.result;
+      if (!dataUrl) { showToast('Не удалось прочитать файл'); return; }
       uploadedFileType = 'pdf';
-      uploadedFileBase64 = dataUrl.split(',')[1];
+      uploadedFileBase64 = (dataUrl.split(',')[1]) || '';
       uploadedFileMediaType = 'application/pdf';
       uploadedFileName = file.name;
       uploadedFileContent = '';
@@ -2135,9 +2168,10 @@ async function translateFile() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'API error');
+      const targetInfo = LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
       document.getElementById('fileResultText').textContent = data.text;
-      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
-      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
+      document.getElementById('fileResultText').dataset.lang = targetInfo.tts;
+      document.getElementById('fileResultLabel').textContent = targetInfo.name;
       document.getElementById('fileResult').classList.add('visible');
 
     } else if (uploadedFileType === 'pdf') {
@@ -2156,9 +2190,10 @@ async function translateFile() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'API error');
+      const pdfTargetInfo = LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
       document.getElementById('fileResultText').textContent = data.text;
-      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
-      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
+      document.getElementById('fileResultText').dataset.lang = pdfTargetInfo.tts;
+      document.getElementById('fileResultLabel').textContent = pdfTargetInfo.name;
       document.getElementById('fileResult').classList.add('visible');
 
     } else {
@@ -2207,9 +2242,10 @@ async function translateFile() {
         results.push(data.text);
       }
 
+      const txtTargetInfo = LANGS[targetLang] || { name: 'Translation', tts: 'en-US' };
       document.getElementById('fileResultText').textContent = results.join('\n');
-      document.getElementById('fileResultText').dataset.lang = LANGS[targetLang].tts;
-      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
+      document.getElementById('fileResultText').dataset.lang = txtTargetInfo.tts;
+      document.getElementById('fileResultLabel').textContent = txtTargetInfo.name;
       document.getElementById('fileResult').classList.add('visible');
     }
   } catch (e) {
