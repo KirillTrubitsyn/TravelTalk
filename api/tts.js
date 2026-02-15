@@ -33,6 +33,7 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           contents: [{
+            role: 'user',
             parts: [{
               text: text
             }]
@@ -44,7 +45,8 @@ export default async function handler(req, res) {
                 prebuiltVoiceConfig: {
                   voiceName: voiceName
                 }
-              }
+              },
+              ...(lang ? { languageCode: lang.toLowerCase() } : {})
             }
           }
         })
