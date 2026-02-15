@@ -1220,7 +1220,7 @@ async function callClaude(systemPrompt, userContent, maxTokens, signal) {
 }
 
 function getAutoTranslatePrompt() {
-  return 'You are a translator. The user has a language pair: ' + getSourceName() + ' and ' + getTargetName() + '. Auto-detect the language of the input text. If it is ' + getSourceName() + ', translate to ' + getTargetName() + '. If it is ' + getTargetName() + ', translate to ' + getSourceName() + '. If it is neither, translate to ' + getTargetName() + '. Reply ONLY in this JSON format: {"from":"LANG_CODE","text":"TRANSLATED_TEXT"} where LANG_CODE is one of: ' + Object.keys(LANGS).join(', ') + '. No markdown, no explanation.';
+  return 'You are a professional translator. The user has a language pair: ' + getSourceName() + ' and ' + getTargetName() + '. Auto-detect the language of the input text. If it is ' + getSourceName() + ', translate to ' + getTargetName() + '. If it is ' + getTargetName() + ', translate to ' + getSourceName() + '. If it is neither, translate to ' + getTargetName() + '. IMPORTANT: Always provide a proper semantic translation of the meaning. Never transliterate or write words phonetically in another script. For example, German "Flughafen" must be translated to Russian "аэропорт", not transliterated as "Флюгхафен". Reply ONLY with this JSON: {"from":"LANG_CODE","text":"TRANSLATED_TEXT"} where LANG_CODE is one of: ' + Object.keys(LANGS).join(', ') + '. No markdown, no explanation, no conversation.';
 }
 
 function parseTranslateResult(raw) {
@@ -1527,7 +1527,7 @@ async function sendDialog() {
 
   try {
     const raw = await callClaude(
-      getAutoTranslatePrompt() + ' Be natural and conversational.',
+      getAutoTranslatePrompt() + ' Make the translation sound natural and fluent.',
       text,
       1024,
       currentAbortController.signal
@@ -1578,7 +1578,7 @@ function toggleDialogRecording() {
 
       try {
         const raw = await callClaude(
-          getAutoTranslatePrompt() + ' Be natural and conversational.',
+          getAutoTranslatePrompt() + ' Make the translation sound natural and fluent.',
           finalText.trim(),
           1024,
           currentAbortController.signal
