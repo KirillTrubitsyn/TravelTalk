@@ -1366,7 +1366,7 @@ async function translatePhoto() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        system: 'You are an OCR and translation assistant. First, extract ALL visible text from the image. Then translate it to ' + getTargetName() + '. Detect the source language automatically. Format your response as:\nOCR: [extracted text]\nTRANSLATION: [translated text]',
+        system: 'You are an OCR and translation assistant. First, extract ALL visible text from the image. Then translate it to ' + getTargetName() + '. Detect the source language automatically. IMPORTANT: Provide a proper semantic translation of the meaning, not a transliteration or phonetic transcription into another script. Format your response as:\nOCR: [extracted text]\nTRANSLATION: [translated text]',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
           { type: 'text', text: 'Extract text from this image and translate it to ' + getTargetName() + '.' }
@@ -1832,7 +1832,7 @@ async function translateFile() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: 'You are a translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Keep the original formatting (line breaks, indentation, structure). Translate ONLY the text content, preserving any markup tags, code, or special characters. Reply with ONLY the translated text, no explanations.',
+          system: 'You are a professional translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Keep the original formatting (line breaks, indentation, structure). Translate ONLY the text content, preserving any markup tags, code, or special characters. IMPORTANT: Provide a proper semantic translation, not a transliteration or phonetic transcription into another script. Reply with ONLY the translated text, no explanations.',
           content: chunks[i],
           max_tokens: 4096
         }),
