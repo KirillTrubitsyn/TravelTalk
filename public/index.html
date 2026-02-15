@@ -547,6 +547,21 @@ body {
 
 .voice-status { font-size: 14px; color: var(--muted); text-align: center; }
 .voice-status.active { color: var(--danger); font-weight: 500; }
+.voice-lang-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: var(--r8);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: all 0.2s;
+  user-select: none;
+}
+.voice-lang-indicator:hover { border-color: var(--terracotta); color: var(--terracotta); }
 
 .voice-transcript {
   width: 100%;
@@ -1038,6 +1053,7 @@ body {
         <div class="mic-ring" id="voiceMic" onclick="toggleVoiceRecording()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         </div>
+        <span class="voice-lang-indicator" id="voiceLangIndicator" onclick="toggleVoiceLang()" title="Нажмите, чтобы переключить язык записи"></span>
         <div class="voice-status" id="voiceStatus">Нажмите для записи</div>
         <div class="voice-transcript" id="voiceTranscript"></div>
         <div class="result-card" id="voiceResult">
@@ -1157,6 +1173,7 @@ let dialogRecording = false;
 let recognition = null;
 let dialogFirstMessage = true;
 let dialogNextLang = 'ru';
+let voiceNextLang = 'ru';
 let voiceGender = localStorage.getItem('traveltalk_voice') || 'female';
 
 function getSourceName() { return LANG_NAMES_FOR_PROMPT[sourceLang]; }
@@ -1207,7 +1224,9 @@ function updateLangs() {
   document.getElementById('langFromFlag').innerHTML = flagImg(LANGS[sourceLang].flagCode);
   document.getElementById('langToFlag').innerHTML = flagImg(LANGS[targetLang].flagCode);
   dialogNextLang = sourceLang;
+  voiceNextLang = sourceLang;
   updateDialogLangIndicator();
+  updateVoiceLangIndicator();
 }
 
 function swapLangs() {
@@ -1234,6 +1253,23 @@ function flipDialogLang() {
 
 function toggleDialogLang() {
   flipDialogLang();
+}
+
+function updateVoiceLangIndicator() {
+  const el = document.getElementById('voiceLangIndicator');
+  if (!el) return;
+  const lang = LANGS[voiceNextLang];
+  if (!lang) return;
+  el.innerHTML = flagImg(lang.flagCode, 16) + ' ' + lang.name;
+}
+
+function flipVoiceLang() {
+  voiceNextLang = (voiceNextLang === sourceLang) ? targetLang : sourceLang;
+  updateVoiceLangIndicator();
+}
+
+function toggleVoiceLang() {
+  flipVoiceLang();
 }
 
 // ===== API =====
@@ -1458,7 +1494,7 @@ function toggleVoiceRecording() {
   recognition = getSpeechRecognition();
   if (!recognition) return;
 
-  recognition.lang = LANGS[sourceLang].speech;
+  recognition.lang = LANGS[voiceNextLang].speech;
   voiceRecording = true;
   mic.classList.add('recording');
   status.textContent = 'Говорите...';
@@ -1489,6 +1525,7 @@ function toggleVoiceRecording() {
         const r = parseTranslateResult(raw);
         document.getElementById('voiceResultText').textContent = r.text;
         document.getElementById('voiceResult').classList.add('visible');
+        flipVoiceLang();
       } catch (e) {
         if (e.name !== 'AbortError') { showToast('Ошибка: ' + e.message); }
       }
