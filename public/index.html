@@ -1703,7 +1703,7 @@ async function toggleDialogRecording() {
 
   if (dialogRecording) {
     // User gesture context — unlock audio so auto-speak works after recognition ends
-    unlockAudio();
+    await unlockAudio();
     if (recognition) recognition.stop();
     return;
   }
@@ -1811,19 +1811,24 @@ function getAudioEl() {
 // Unlock audio playback on iOS / mobile WebView by triggering play()
 // on a silent clip during a user gesture.  Once unlocked the element
 // accepts programmatic play() calls (e.g. auto-speak in dialog mode).
+// Returns a Promise; concurrent callers share the same in-flight unlock.
 let _audioUnlocked = false;
+let _unlockPromise = null;
 function unlockAudio() {
-  if (_audioUnlocked) return;
+  if (_audioUnlocked) return Promise.resolve();
+  if (_unlockPromise) return _unlockPromise;
   const a = getAudioEl();
   a.src = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAAAAA==';
   a.volume = 0;
-  a.play().then(() => {
+  _unlockPromise = a.play().then(() => {
     a.pause(); a.volume = 1; a.currentTime = 0;
     _audioUnlocked = true;
-  }).catch(() => {});
+    _unlockPromise = null;
+  }).catch(() => { _unlockPromise = null; });
+  return _unlockPromise;
 }
-document.addEventListener('click', unlockAudio);
-document.addEventListener('touchend', unlockAudio, { passive: true });
+document.addEventListener('click', () => unlockAudio());
+document.addEventListener('touchend', () => unlockAudio(), { passive: true });
 
 function clearSpeakingState() {
   document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
@@ -1849,6 +1854,10 @@ async function speakText(text, lang, btn) {
   stopAudio();
 
   clearSpeakingState();
+
+  // Unlock audio element within user gesture context (must happen before async fetch).
+  // On iOS / mobile, audio.play() only works after a prior play() from a gesture.
+  await unlockAudio();
 
   const ttsLang = lang || 'en-US';
   const cacheKey = text + '|' + voiceGender + '|' + ttsLang;
