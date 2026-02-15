@@ -1814,7 +1814,11 @@ function showGlobalStop() {
   if (g) g.classList.add('visible');
 }
 
-async function speakText(text, lang, btn) {
+// IMPORTANT: this is a regular (non-async) function so that audio.play()
+// runs in the exact same synchronous call-stack as the user gesture.
+// Using an async function would wrap the body in a hidden Promise that
+// breaks the gesture token chain on some iOS Safari versions.
+function speakText(text, lang, btn) {
   const audio = getAudioEl();
   // Toggle: if already playing or loading, stop
   if (ttsLoading || (!audio.paused && !audio.ended) || (window.speechSynthesis && window.speechSynthesis.speaking)) {
@@ -1822,7 +1826,10 @@ async function speakText(text, lang, btn) {
     return;
   }
 
-  stopAudio();
+  // Cancel browser speech only — do NOT call audio.load() or
+  // audio.pause() here because that consumes the user-gesture token
+  // on iOS Safari and the subsequent play() would be rejected.
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSpeakingState();
 
   const ttsLang = lang || 'en-US';
@@ -1835,35 +1842,36 @@ async function speakText(text, lang, btn) {
   audio.onerror = () => {
     ttsLoading = false;
     clearSpeakingState();
-    showToast('Ошибка озвучки');
+    const code = audio.error ? audio.error.code : '?';
+    const msg = audio.error ? audio.error.message : '';
+    showToast('Ошибка аудио (' + code + ') ' + msg);
     fallbackSpeechSynthesis(text, ttsLang, btn);
   };
 
-  // Set audio.src to a direct GET URL so the browser handles the
-  // network request internally.  audio.play() is called synchronously
-  // inside the user-gesture context — no async gap — so iOS / Android
-  // allow playback without unlock hacks.  HTTP cache (max-age=86400)
-  // makes repeated plays instant.
+  // Direct GET URL — the browser fetches audio internally.
+  // audio.play() is called synchronously in the same call-stack as
+  // the click event, preserving the user-gesture token on iOS/Android.
   const params = new URLSearchParams({ text, voice: voiceGender, lang: ttsLang });
   audio.src = '/api/tts?' + params.toString();
 
-  try {
-    await audio.play();
+  audio.play().then(() => {
     // Playback started — switch loading → speaking
     if (btn) { btn.classList.remove('tts-loading'); btn.classList.add('speaking'); }
     ttsLoading = false;
     showGlobalStop();
-  } catch (e) {
+  }).catch(e => {
     ttsLoading = false;
     if (e.name === 'AbortError') {
       clearSpeakingState();
       return;
     }
     console.warn('[TTS] play() failed:', e.name, e.message);
-    showToast('Ошибка: ' + e.name);
     clearSpeakingState();
+    // For auto-play (no direct user gesture), NotAllowedError is expected — don't nag
+    if (e.name === 'NotAllowedError') return;
+    showToast('Ошибка: ' + e.name + ' — ' + e.message);
     fallbackSpeechSynthesis(text, ttsLang, btn);
-  }
+  });
 }
 
 function fallbackSpeechSynthesis(text, ttsLang, btn) {
