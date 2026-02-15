@@ -24,7 +24,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-tts:generateContent',
       {
         method: 'POST',
         headers: {
@@ -40,7 +40,6 @@ export default async function handler(req, res) {
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
-              languageCode: lang ? lang.toLowerCase() : undefined,
               voiceConfig: {
                 prebuiltVoiceConfig: {
                   voiceName: voiceName
