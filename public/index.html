@@ -1141,6 +1141,23 @@ let recognition = null;
 let dialogFirstMessage = true;
 let voiceGender = localStorage.getItem('traveltalk_voice') || 'female';
 
+// Persistent audio element for mobile autoplay compatibility
+const audioPlayer = new Audio();
+let audioUnlocked = false;
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioPlayer.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+  audioPlayer.play().then(() => {
+    audioUnlocked = true;
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
+  }).catch(() => {});
+}
+
+document.addEventListener('touchstart', unlockAudio, { passive: true });
+document.addEventListener('click', unlockAudio);
+
 function getSourceName() { return LANG_NAMES_FOR_PROMPT[sourceLang]; }
 function getTargetName() { return LANG_NAMES_FOR_PROMPT[targetLang]; }
 
@@ -1653,12 +1670,13 @@ async function speakText(text, lang, btn) {
       ttsCache.set(cacheKey, url);
     }
 
-    currentAudio = new Audio(url);
-    currentAudio.onended = () => { currentAudio = null; clearSpeakingState(); };
-    currentAudio.onerror = () => { currentAudio = null; clearSpeakingState(); };
+    audioPlayer.onended = () => { currentAudio = null; clearSpeakingState(); };
+    audioPlayer.onerror = () => { currentAudio = null; clearSpeakingState(); };
+    audioPlayer.src = url;
+    currentAudio = audioPlayer;
     const ttsStop = document.getElementById('ttsStopBtn');
     if (ttsStop) ttsStop.style.display = 'flex';
-    currentAudio.play();
+    await audioPlayer.play();
   } catch (e) {
     clearSpeakingState();
     // Fallback to browser TTS
