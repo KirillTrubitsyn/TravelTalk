@@ -868,6 +868,7 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(31,41,55,0.12); border-radius: 2px; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
 
@@ -1045,9 +1046,9 @@ body {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
         <div class="file-title">Загрузить файл для перевода</div>
         <div class="file-sub">Перетащите файл сюда или нажмите</div>
-        <div class="file-formats">.txt, .html, .csv, .json, .md, .xml</div>
+        <div class="file-formats">.pdf, .docx, изображения, .txt, .html, .csv, .json, .md, .xml</div>
       </div>
-      <input type="file" id="fileInput" accept=".txt,.text,.html,.htm,.csv,.json,.md,.markdown,.xml,.srt,.sub,.vtt,.log,.ini,.cfg,.yaml,.yml,.tsv" style="display:none" onchange="handleFileUpload(event)">
+      <input type="file" id="fileInput" accept=".txt,.text,.html,.htm,.csv,.json,.md,.markdown,.xml,.srt,.sub,.vtt,.log,.ini,.cfg,.yaml,.yml,.tsv,.pdf,.docx,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff,.tif,.heic,.heif,.avif,.svg,image/*" style="display:none" onchange="handleFileUpload(event)">
       <div class="file-info" id="fileInfo">
         <div class="file-info-header">
           <div class="file-info-name">
@@ -1057,6 +1058,7 @@ body {
           <span class="file-info-size" id="fileSize"></span>
         </div>
         <div class="file-content-preview visible" id="filePreview"></div>
+        <img id="fileImagePreview" src="" alt="" style="display:none;width:100%;max-height:200px;object-fit:contain;border-radius:var(--r12);border:1px solid var(--border)">
         <div class="file-info-actions">
           <button class="btn btn-primary" id="fileTranslateBtn" onclick="translateFile()" style="flex:1">Перевести файл</button>
           <button class="stop-btn" id="fileStopBtn" onclick="stopCurrentOperation()">
@@ -1724,6 +1726,9 @@ function stopAudio() {
 // ===== FILE UPLOAD =====
 let uploadedFileContent = '';
 let uploadedFileName = '';
+let uploadedFileType = 'text'; // 'text', 'image', 'pdf'
+let uploadedFileBase64 = '';
+let uploadedFileMediaType = '';
 
 function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' Б';
@@ -1735,59 +1740,140 @@ function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  const binaryExts = ['.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.pdf', '.zip', '.rar', '.7z', '.gz', '.tar', '.exe', '.bin', '.odt', '.ods', '.epub'];
   const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-  if (binaryExts.includes(ext)) {
-    showToast('Формат ' + ext + ' не поддерживается. Используйте текстовые файлы.');
+  const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.tif', '.ico', '.heic', '.heif', '.avif'];
+  const unsupportedExts = ['.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.zip', '.rar', '.7z', '.gz', '.tar', '.exe', '.bin', '.odt', '.ods', '.epub'];
+
+  if (unsupportedExts.includes(ext)) {
+    showToast('Формат ' + ext + ' не поддерживается.');
     return;
   }
 
-  const maxSize = 100 * 1024; // 100KB limit for translation
+  const isImage = imageExts.includes(ext) || file.type.startsWith('image/');
+  const isPdf = ext === '.pdf';
+  const isDocx = ext === '.docx';
+  const isBinary = isImage || isPdf || isDocx;
+
+  const maxSize = isBinary ? 10 * 1024 * 1024 : 100 * 1024;
+  const maxLabel = isBinary ? '10 МБ' : '100 КБ';
+
   if (file.size > maxSize) {
-    showToast('Файл слишком большой (макс. 100 КБ)');
+    showToast('Файл слишком большой (макс. ' + maxLabel + ')');
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const text = ev.target.result;
-    let nonPrintable = 0;
-    for (let i = 0; i < Math.min(text.length, 1000); i++) {
-      const c = text.charCodeAt(i);
-      if (c < 32 && c !== 9 && c !== 10 && c !== 13) nonPrintable++;
-    }
-    if (nonPrintable > 20) {
-      showToast('Файл содержит бинарные данные. Используйте текстовые файлы.');
-      return;
-    }
-    uploadedFileContent = text;
-    uploadedFileName = file.name;
+  if (isImage) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      uploadedFileType = 'image';
+      uploadedFileBase64 = dataUrl.split(',')[1];
+      uploadedFileMediaType = dataUrl.split(';')[0].split(':')[1];
+      uploadedFileName = file.name;
+      uploadedFileContent = '';
+      showFileInfo(file.name, file.size);
+      document.getElementById('fileImagePreview').src = dataUrl;
+      document.getElementById('fileImagePreview').style.display = 'block';
+      document.getElementById('filePreview').classList.remove('visible');
+    };
+    reader.readAsDataURL(file);
+  } else if (isPdf) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      uploadedFileType = 'pdf';
+      uploadedFileBase64 = dataUrl.split(',')[1];
+      uploadedFileMediaType = 'application/pdf';
+      uploadedFileName = file.name;
+      uploadedFileContent = '';
+      showFileInfo(file.name, file.size);
+      document.getElementById('fileImagePreview').style.display = 'none';
+      document.getElementById('filePreview').textContent = 'PDF документ — ' + formatFileSize(file.size);
+      document.getElementById('filePreview').classList.add('visible');
+    };
+    reader.readAsDataURL(file);
+  } else if (isDocx) {
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        if (typeof mammoth === 'undefined') {
+          showToast('Библиотека для DOCX не загружена. Проверьте соединение.');
+          return;
+        }
+        const result = await mammoth.extractRawText({ arrayBuffer: ev.target.result });
+        const text = result.value;
+        if (!text.trim()) {
+          showToast('Не удалось извлечь текст из документа');
+          return;
+        }
+        uploadedFileType = 'text';
+        uploadedFileContent = text;
+        uploadedFileName = file.name;
+        uploadedFileBase64 = '';
+        uploadedFileMediaType = '';
+        showFileInfo(file.name, file.size);
+        document.getElementById('fileImagePreview').style.display = 'none';
+        const preview = text.substring(0, 500);
+        document.getElementById('filePreview').textContent = preview + (text.length > 500 ? '...' : '');
+        document.getElementById('filePreview').classList.add('visible');
+      } catch (err) {
+        showToast('Ошибка чтения DOCX: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    // Text files
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      let nonPrintable = 0;
+      for (let i = 0; i < Math.min(text.length, 1000); i++) {
+        const c = text.charCodeAt(i);
+        if (c < 32 && c !== 9 && c !== 10 && c !== 13) nonPrintable++;
+      }
+      if (nonPrintable > 20) {
+        showToast('Файл содержит бинарные данные.');
+        return;
+      }
+      uploadedFileType = 'text';
+      uploadedFileContent = text;
+      uploadedFileName = file.name;
+      uploadedFileBase64 = '';
+      uploadedFileMediaType = '';
+      showFileInfo(file.name, file.size);
+      document.getElementById('fileImagePreview').style.display = 'none';
+      const preview = text.substring(0, 500);
+      document.getElementById('filePreview').textContent = preview + (text.length > 500 ? '...' : '');
+      document.getElementById('filePreview').classList.add('visible');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+}
 
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('fileSize').textContent = formatFileSize(file.size);
-
-    // Show preview (first 500 chars)
-    const preview = uploadedFileContent.substring(0, 500);
-    document.getElementById('filePreview').textContent = preview + (uploadedFileContent.length > 500 ? '...' : '');
-
-    document.getElementById('fileInfo').classList.add('visible');
-    document.getElementById('fileZone').style.display = 'none';
-    document.getElementById('fileResult').classList.remove('visible');
-  };
-  reader.readAsText(file, 'UTF-8');
+function showFileInfo(name, size) {
+  document.getElementById('fileName').textContent = name;
+  document.getElementById('fileSize').textContent = formatFileSize(size);
+  document.getElementById('fileInfo').classList.add('visible');
+  document.getElementById('fileZone').style.display = 'none';
+  document.getElementById('fileResult').classList.remove('visible');
 }
 
 function clearFile() {
   uploadedFileContent = '';
   uploadedFileName = '';
+  uploadedFileType = 'text';
+  uploadedFileBase64 = '';
+  uploadedFileMediaType = '';
   document.getElementById('fileInfo').classList.remove('visible');
   document.getElementById('fileResult').classList.remove('visible');
   document.getElementById('fileZone').style.display = 'flex';
   document.getElementById('fileInput').value = '';
+  document.getElementById('fileImagePreview').style.display = 'none';
 }
 
 async function translateFile() {
-  if (!uploadedFileContent) return;
+  if (uploadedFileType === 'text' && !uploadedFileContent) return;
+  if ((uploadedFileType === 'image' || uploadedFileType === 'pdf') && !uploadedFileBase64) return;
 
   const btn = document.getElementById('fileTranslateBtn');
   const stopBtn = document.getElementById('fileStopBtn');
@@ -1797,63 +1883,100 @@ async function translateFile() {
 
   currentAbortController = new AbortController();
 
-  // Split content into chunks if too long (max ~2000 chars per chunk for reliable translation)
-  const maxChunkSize = 2000;
-  const chunks = [];
-  let text = uploadedFileContent;
-
-  if (text.length <= maxChunkSize) {
-    chunks.push(text);
-  } else {
-    // Split by paragraphs/lines, keeping chunks under maxChunkSize
-    const lines = text.split('\n');
-    let current = '';
-    for (const line of lines) {
-      if (current.length + line.length + 1 > maxChunkSize && current.length > 0) {
-        chunks.push(current);
-        current = line;
-      } else {
-        current += (current ? '\n' : '') + line;
-      }
-    }
-    if (current) chunks.push(current);
-  }
-
-  const results = [];
   try {
-    for (let i = 0; i < chunks.length; i++) {
-      if (currentAbortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
-
-      if (chunks.length > 1) {
-        btn.textContent = 'Часть ' + (i + 1) + '/' + chunks.length + '...';
-      }
-
+    if (uploadedFileType === 'image') {
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: 'You are a professional translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Keep the original formatting (line breaks, indentation, structure). Translate ONLY the text content, preserving any markup tags, code, or special characters. IMPORTANT: Provide a proper semantic translation, not a transliteration or phonetic transcription into another script. Reply with ONLY the translated text, no explanations.',
-          content: chunks[i],
+          system: 'You are an OCR and translation assistant. Extract ALL visible text from the image. Then translate the extracted text to ' + getTargetName() + '. Detect the source language automatically. IMPORTANT: Provide a proper semantic translation, not transliteration. Reply with ONLY the translated text, no explanations or labels.',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: uploadedFileMediaType, data: uploadedFileBase64 } },
+            { type: 'text', text: 'Extract all text from this image and translate it to ' + getTargetName() + '. Reply with ONLY the translated text.' }
+          ],
           max_tokens: 4096
         }),
         signal: currentAbortController.signal
       });
-
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'API error: ' + res.status);
-      results.push(data.text);
-    }
+      if (!res.ok) throw new Error(data.error || 'API error');
+      document.getElementById('fileResultText').textContent = data.text;
+      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
+      document.getElementById('fileResult').classList.add('visible');
 
-    document.getElementById('fileResultText').textContent = results.join('\n');
-    document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
-    document.getElementById('fileResult').classList.add('visible');
+    } else if (uploadedFileType === 'pdf') {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system: 'You are a document translation assistant. Extract ALL text from this PDF document. Then translate it to ' + getTargetName() + '. Detect the source language automatically. Keep the structure and formatting. IMPORTANT: Provide a proper semantic translation, not transliteration. Reply with ONLY the translated text, no explanations or labels.',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: uploadedFileBase64 } },
+            { type: 'text', text: 'Extract all text from this PDF and translate it to ' + getTargetName() + '. Reply with ONLY the translated text.' }
+          ],
+          max_tokens: 4096
+        }),
+        signal: currentAbortController.signal
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'API error');
+      document.getElementById('fileResultText').textContent = data.text;
+      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
+      document.getElementById('fileResult').classList.add('visible');
+
+    } else {
+      // Text file — chunked translation
+      const maxChunkSize = 2000;
+      const chunks = [];
+      let text = uploadedFileContent;
+
+      if (text.length <= maxChunkSize) {
+        chunks.push(text);
+      } else {
+        const lines = text.split('\n');
+        let current = '';
+        for (const line of lines) {
+          if (current.length + line.length + 1 > maxChunkSize && current.length > 0) {
+            chunks.push(current);
+            current = line;
+          } else {
+            current += (current ? '\n' : '') + line;
+          }
+        }
+        if (current) chunks.push(current);
+      }
+
+      const results = [];
+      for (let i = 0; i < chunks.length; i++) {
+        if (currentAbortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        if (chunks.length > 1) {
+          btn.textContent = 'Часть ' + (i + 1) + '/' + chunks.length + '...';
+        }
+
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: 'You are a professional translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Keep the original formatting (line breaks, indentation, structure). Translate ONLY the text content, preserving any markup tags, code, or special characters. IMPORTANT: Provide a proper semantic translation, not a transliteration or phonetic transcription into another script. Reply with ONLY the translated text, no explanations.',
+            content: chunks[i],
+            max_tokens: 4096
+          }),
+          signal: currentAbortController.signal
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'API error: ' + res.status);
+        results.push(data.text);
+      }
+
+      document.getElementById('fileResultText').textContent = results.join('\n');
+      document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
+      document.getElementById('fileResult').classList.add('visible');
+    }
   } catch (e) {
     if (e.name === 'AbortError') {
-      if (results.length > 0) {
-        document.getElementById('fileResultText').textContent = results.join('\n') + '\n\n[... перевод остановлен]';
-        document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name + ' (неполный)';
-        document.getElementById('fileResult').classList.add('visible');
-      }
+      showToast('Перевод остановлен');
     } else {
       showToast('Ошибка: ' + e.message);
     }
