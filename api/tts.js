@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     male: 'pNInz6obpgDQGcFmaJgB'     // Adam
   };
   const voiceId = voices[voice] || voices.female;
+  const languageCode = lang ? lang.split('-')[0] : null;
 
   try {
     const response = await fetch(
@@ -30,8 +31,8 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           text,
-          model_id: 'eleven_turbo_v2_5',
-          ...(lang ? { language_code: lang.split('-')[0] } : {}),
+          model_id: 'eleven_multilingual_v2',
+          ...(languageCode ? { language_code: languageCode } : {}),
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
