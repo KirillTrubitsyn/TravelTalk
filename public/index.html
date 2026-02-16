@@ -952,11 +952,11 @@ body {
 .user-menu { display:flex;align-items:center;gap:4px; }
 .user-name { font-size:12px;color:var(--muted);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 
-/* ===== HISTORY SCREEN ===== */
-.history-screen { position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;overflow:hidden; }
-.history-screen.hidden { display:none; }
-.history-topbar { display:flex;align-items:center;gap:12px;padding:0 16px;min-height:56px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0; }
-.history-back { border:none;background:none;cursor:pointer;color:var(--text);padding:8px;margin:-8px;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);min-width:40px;min-height:40px; }
+/* ===== HISTORY VIEW ===== */
+.history-view { display:none;flex-direction:column;flex:1;min-height:0;position:relative; }
+.history-view.visible { display:flex; }
+.history-topbar { display:flex;align-items:center;gap:12px;padding:0 0;min-height:56px;border-bottom:1px solid var(--border);flex-shrink:0; }
+.history-back { border:none;background:none;cursor:pointer;color:var(--text);padding:8px;margin:-8px 0;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);min-width:40px;min-height:40px; }
 .history-back:active { background:var(--surfaceAlt); }
 .history-topbar-title { flex:1;font-size:17px;font-weight:600;color:var(--text); }
 .history-filter-btn { border:none;background:var(--surfaceAlt);cursor:pointer;color:var(--muted);padding:6px 12px;border-radius:20px;font-family:var(--font);font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;transition:all 0.15s; }
@@ -965,9 +965,9 @@ body {
 .history-filter-btn svg { width:16px;height:16px;flex-shrink:0; }
 
 /* Filter dropdown */
-.history-filter-backdrop { position:fixed;inset:0;z-index:1000;display:none; }
+.history-filter-backdrop { position:absolute;inset:0;z-index:10;display:none; }
 .history-filter-backdrop.visible { display:block; }
-.history-filter-menu { position:absolute;top:52px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);box-shadow:0 8px 32px rgba(31,41,55,0.12);padding:6px;min-width:180px;z-index:1001;opacity:0;transform:translateY(-8px) scale(0.96);transition:all 0.18s ease;pointer-events:none; }
+.history-filter-menu { position:absolute;top:52px;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);box-shadow:0 8px 32px rgba(31,41,55,0.12);padding:6px;min-width:180px;z-index:11;opacity:0;transform:translateY(-8px) scale(0.96);transition:all 0.18s ease;pointer-events:none; }
 .history-filter-menu.visible { opacity:1;transform:translateY(0) scale(1);pointer-events:auto; }
 .history-filter-option { display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;border:none;background:none;cursor:pointer;font-family:var(--font);font-size:14px;color:var(--text);border-radius:var(--r12);transition:background 0.12s; }
 .history-filter-option:active { background:var(--surfaceAlt); }
@@ -976,7 +976,7 @@ body {
 .history-filter-option.selected svg { color:var(--sea); }
 
 /* List */
-.history-list { flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 80px;display:flex;flex-direction:column;gap:10px; }
+.history-list { flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 0 20px;display:flex;flex-direction:column;gap:10px; }
 .history-item { background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);padding:14px;box-shadow:var(--shadowSm); }
 .history-item-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
 .history-item-mode { font-size:11px;font-weight:600;text-transform:uppercase;color:var(--sea);background:var(--seaSoft);padding:2px 8px;border-radius:6px; }
@@ -986,7 +986,7 @@ body {
 .history-item-langs { font-size:11px;color:var(--muted);margin-top:6px; }
 .history-dialog-msg { padding:6px 0;border-bottom:1px solid var(--border); }
 .history-dialog-msg:last-child { border-bottom:none; }
-.history-load-more { margin:0 16px 20px;padding:12px;border:1px solid var(--border);border-radius:var(--r16);background:var(--surface);color:var(--sea);font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0; }
+.history-load-more { margin:0 0 20px;padding:12px;border:1px solid var(--border);border-radius:var(--r16);background:var(--surface);color:var(--sea);font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0; }
 .history-load-more.hidden { display:none; }
 .history-load-more:active { background:var(--surfaceAlt); }
 .history-empty { text-align:center;padding:60px 20px;color:var(--muted); }
@@ -1033,60 +1033,8 @@ body {
   </div>
 </div>
 
-<!-- HISTORY SCREEN -->
-<div class="history-screen hidden" id="historyOverlay">
-  <!-- Top bar -->
-  <div class="history-topbar">
-    <button class="history-back" onclick="toggleHistory()">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <div class="history-topbar-title">История</div>
-    <button class="history-filter-btn" id="historyFilterBtn" onclick="toggleFilterMenu()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-      <span id="historyFilterLabel">Все</span>
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-  </div>
-
-  <!-- Filter dropdown backdrop -->
-  <div class="history-filter-backdrop" id="filterBackdrop" onclick="closeFilterMenu()"></div>
-
-  <!-- Filter dropdown menu -->
-  <div class="history-filter-menu" id="filterMenu">
-    <button class="history-filter-option selected" data-filter="all" onclick="selectFilter('all')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-      Все
-    </button>
-    <button class="history-filter-option" data-filter="text" onclick="selectFilter('text')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Текст
-    </button>
-    <button class="history-filter-option" data-filter="photo" onclick="selectFilter('photo')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      Фото
-    </button>
-    <button class="history-filter-option" data-filter="voice" onclick="selectFilter('voice')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-      Голос
-    </button>
-    <button class="history-filter-option" data-filter="dialog" onclick="selectFilter('dialog')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      Диалог
-    </button>
-    <button class="history-filter-option" data-filter="file" onclick="selectFilter('file')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-      Файл
-    </button>
-  </div>
-
-  <!-- History list -->
-  <div class="history-list" id="historyList">
-    <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Загрузка...</div>
-  </div>
-  <button class="history-load-more hidden" id="historyLoadMore" onclick="loadMoreHistory()">Загрузить ещё</button>
-</div>
-
 <div class="app" style="display:none">
+  <div id="mainView" style="display:flex;flex-direction:column;flex:1;min-height:0">
   <div class="header">
     <div class="logo">
       <img class="logo-icon" src="icons/icon.svg" alt="T">
@@ -1332,7 +1280,55 @@ body {
     </div>
 
   </div>
-</div>
+  </div><!-- /mainView -->
+
+  <!-- HISTORY VIEW -->
+  <div class="history-view" id="historyView">
+    <div class="history-topbar">
+      <button class="history-back" onclick="toggleHistory()">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="history-topbar-title">История</div>
+      <button class="history-filter-btn" id="historyFilterBtn" onclick="toggleFilterMenu()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        <span id="historyFilterLabel">Все</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <div class="history-filter-backdrop" id="filterBackdrop" onclick="closeFilterMenu()"></div>
+    <div class="history-filter-menu" id="filterMenu">
+      <button class="history-filter-option selected" data-filter="all" onclick="selectFilter('all')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Все
+      </button>
+      <button class="history-filter-option" data-filter="text" onclick="selectFilter('text')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Текст
+      </button>
+      <button class="history-filter-option" data-filter="photo" onclick="selectFilter('photo')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Фото
+      </button>
+      <button class="history-filter-option" data-filter="voice" onclick="selectFilter('voice')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+        Голос
+      </button>
+      <button class="history-filter-option" data-filter="dialog" onclick="selectFilter('dialog')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Диалог
+      </button>
+      <button class="history-filter-option" data-filter="file" onclick="selectFilter('file')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+        Файл
+      </button>
+    </div>
+    <div class="history-list" id="historyList">
+      <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Загрузка...</div>
+    </div>
+    <button class="history-load-more hidden" id="historyLoadMore" onclick="loadMoreHistory()">Загрузить ещё</button>
+  </div>
+
+</div><!-- /app -->
 
 
 <div class="toast" id="toast"></div>
@@ -1536,14 +1532,18 @@ let historyLoading = false;
 const HISTORY_FILTER_NAMES = { all: 'Все', text: 'Текст', photo: 'Фото', voice: 'Голос', dialog: 'Диалог', file: 'Файл' };
 
 function toggleHistory() {
-  const screen = document.getElementById('historyOverlay');
-  if (screen.classList.contains('hidden')) {
-    screen.classList.remove('hidden');
+  const main = document.getElementById('mainView');
+  const hist = document.getElementById('historyView');
+  const isOpen = hist.classList.contains('visible');
+  if (isOpen) {
+    hist.classList.remove('visible');
+    main.style.display = '';
+    closeFilterMenu();
+  } else {
+    main.style.display = 'none';
+    hist.classList.add('visible');
     historyPage = 1;
     loadHistory();
-  } else {
-    screen.classList.add('hidden');
-    closeFilterMenu();
   }
 }
 
