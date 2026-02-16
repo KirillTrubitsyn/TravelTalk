@@ -195,11 +195,20 @@ body {
 .lang-flag {
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 10px 6px 10px 10px;
   pointer-events: none;
   flex-shrink: 0;
   line-height: 0;
 }
+.lang-label {
+  pointer-events: none;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.lang-select-wrap.source .lang-label { color: var(--terracotta); }
+.lang-select-wrap.target .lang-label { color: var(--sea); }
 .lang-select {
   position: absolute;
   top: 0;
@@ -1063,6 +1072,7 @@ body {
   <div class="lang-bar">
     <div class="lang-select-wrap source">
       <span class="lang-flag" id="langFromFlag"></span>
+      <span class="lang-label" id="langFromLabel"></span>
       <select class="lang-select" id="langFrom" onchange="updateLangs()">
         <option value="ru">Русский</option>
         <option value="pt-BR">Português</option>
@@ -1078,6 +1088,7 @@ body {
     </button>
     <div class="lang-select-wrap target">
       <span class="lang-flag" id="langToFlag"></span>
+      <span class="lang-label" id="langToLabel"></span>
       <select class="lang-select" id="langTo" onchange="updateLangs()">
         <option value="en">English</option>
         <option value="pt-BR">Português</option>
@@ -1716,6 +1727,8 @@ function updateLangs() {
   }
   document.getElementById('langFromFlag').innerHTML = flagImg(LANGS[sourceLang].flagCode);
   document.getElementById('langToFlag').innerHTML = flagImg(LANGS[targetLang].flagCode);
+  document.getElementById('langFromLabel').textContent = LANGS[sourceLang].name;
+  document.getElementById('langToLabel').textContent = LANGS[targetLang].name;
   dialogNextLang = sourceLang;
   voiceNextLang = sourceLang;
   // Clear dialog history on language change
