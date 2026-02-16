@@ -1,6 +1,14 @@
+import { validateSession } from './_supabase.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Auth check
+  const session = await validateSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
