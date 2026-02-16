@@ -920,21 +920,111 @@ body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(31,41,55,0.12); border-radius: 2px; }
+
+/* ===== LOGIN SCREEN ===== */
+.login-screen { position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px; }
+.login-screen.hidden { display:none; }
+.login-card { max-width:380px;width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px; }
+.login-logo { width:80px;height:80px;border-radius:20px; }
+.login-title { font-size:28px;font-weight:600;color:var(--sea); }
+.login-title span { color:var(--terracotta); }
+.login-subtitle { font-size:14px;color:var(--muted);margin-bottom:8px; }
+.login-form { width:100%;display:flex;flex-direction:column;gap:12px; }
+.login-input { width:100%;padding:14px 18px;border-radius:var(--r16);border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);font-size:15px;outline:none;transition:border-color 0.2s,box-shadow 0.2s; }
+.login-input:focus { border-color:rgba(242,106,61,0.25);box-shadow:0 0 0 3px var(--focus); }
+.login-input::placeholder { color:var(--muted); }
+.login-btn { width:100%;padding:14px;border-radius:var(--r16);border:none;background:var(--cta);color:#fff;font-family:var(--font);font-size:16px;font-weight:600;cursor:pointer;box-shadow:var(--ctaShadow);transition:all 150ms ease; }
+.login-btn:hover { filter:brightness(1.05); }
+.login-btn:disabled { opacity:0.5;cursor:not-allowed; }
+.login-error { font-size:13px;color:var(--danger);min-height:20px; }
+
+/* ===== HEADER USER MENU ===== */
+.header-icon-btn { border:none;background:none;cursor:pointer;color:var(--muted);padding:8px;border-radius:var(--r12);min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;transition:all 0.2s; }
+.header-icon-btn:hover { background:var(--surfaceAlt);color:var(--text); }
+.user-menu { display:flex;align-items:center;gap:4px; }
+.user-name { font-size:12px;color:var(--muted);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+
+/* ===== HISTORY OVERLAY ===== */
+.history-overlay { position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;overflow:hidden; }
+.history-overlay.hidden { display:none; }
+.history-header { display:flex;align-items:center;justify-content:space-between;padding:20px 20px 12px; }
+.history-tabs { display:flex;gap:0;padding:0 20px 12px;background:var(--bg); }
+.history-tab { flex:1;padding:8px 4px;border:none;background:var(--surface);color:var(--muted);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border-radius:var(--r12);transition:all 0.2s; }
+.history-tab.active { background:var(--seaSoft);color:var(--sea);font-weight:600; }
+.history-list { flex:1;overflow-y:auto;padding:0 20px 20px;display:flex;flex-direction:column;gap:10px; }
+.history-item { background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);padding:14px;box-shadow:var(--shadowSm); }
+.history-item-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
+.history-item-mode { font-size:11px;font-weight:600;text-transform:uppercase;color:var(--sea);background:var(--seaSoft);padding:2px 8px;border-radius:6px; }
+.history-item-date { font-size:11px;color:var(--muted); }
+.history-item-source { font-size:13px;color:var(--muted);margin-bottom:4px;line-height:1.4; }
+.history-item-text { font-size:14px;color:var(--text);line-height:1.5; }
+.history-item-langs { font-size:11px;color:var(--muted);margin-top:6px; }
+.history-dialog-msg { padding:6px 0;border-bottom:1px solid var(--border); }
+.history-dialog-msg:last-child { border-bottom:none; }
+.history-load-more { margin:12px 20px;padding:12px;border:1px solid var(--border);border-radius:var(--r16);background:var(--surface);color:var(--sea);font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer; }
+.history-load-more.hidden { display:none; }
+.history-load-more:hover { background:var(--surfaceAlt); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
 
-<div class="app">
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <img class="login-logo" src="icons/icon.svg" alt="TravelTalk">
+    <div class="login-title">Travel<span>Talk</span></div>
+    <div class="login-subtitle">Мультиязычный переводчик для путешествий</div>
+    <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
+      <input class="login-input" id="inviteCodeInput" type="text" placeholder="Код приглашения" autocomplete="off" required>
+      <input class="login-input" id="nameInput" type="text" placeholder="Ваше имя" autocomplete="off" required>
+      <button class="login-btn" type="submit" id="loginBtn">Войти</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+  </div>
+</div>
+
+<!-- HISTORY OVERLAY -->
+<div class="history-overlay hidden" id="historyOverlay">
+  <div class="history-header">
+    <h2 style="font-size:18px;font-weight:600;color:var(--text)">История переводов</h2>
+    <button class="icon-btn" onclick="toggleHistory()" style="border:none;background:none;cursor:pointer">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="history-tabs">
+    <button class="history-tab active" data-htype="all" onclick="switchHistoryTab(this,'all')">Все</button>
+    <button class="history-tab" data-htype="text" onclick="switchHistoryTab(this,'text')">Текст</button>
+    <button class="history-tab" data-htype="voice" onclick="switchHistoryTab(this,'voice')">Голос</button>
+    <button class="history-tab" data-htype="dialog" onclick="switchHistoryTab(this,'dialog')">Диалоги</button>
+  </div>
+  <div class="history-list" id="historyList">
+    <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Загрузка...</div>
+  </div>
+  <button class="history-load-more hidden" id="historyLoadMore" onclick="loadMoreHistory()">Загрузить ещё</button>
+</div>
+
+<div class="app" style="display:none">
   <div class="header">
     <div class="logo">
       <img class="logo-icon" src="icons/icon.svg" alt="T">
       <div class="logo-text">Travel<span>Talk</span></div>
     </div>
-    <button class="voice-gender-btn" id="voiceGenderBtn" onclick="toggleVoiceGender()" title="Сменить голос">
-      <svg id="voiceGenderIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
-      <span id="voiceGenderLabel">Жен</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="voice-gender-btn" id="voiceGenderBtn" onclick="toggleVoiceGender()" title="Сменить голос">
+        <svg id="voiceGenderIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+        <span id="voiceGenderLabel">Жен</span>
+      </button>
+      <button class="icon-btn header-icon-btn" onclick="toggleHistory()" title="История">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <div class="user-menu" id="userMenu" style="display:none">
+        <span class="user-name" id="userName"></span>
+        <button class="icon-btn header-icon-btn" onclick="logout()" title="Выйти">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="tabs">
@@ -1170,6 +1260,231 @@ body {
 </button>
 
 <script>
+// ===== AUTH & SESSION =====
+let authToken = localStorage.getItem('traveltalk_token');
+let currentUser = null;
+let currentDialogSessionId = null;
+let dialogMessageSeq = 0;
+
+function getDeviceId() {
+  let id = localStorage.getItem('traveltalk_device_id');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('traveltalk_device_id', id); }
+  return id;
+}
+
+function getAuthHeaders() {
+  return authToken ? { 'Authorization': 'Bearer ' + authToken } : {};
+}
+
+async function checkSession() {
+  if (!authToken) { showLoginScreen(); return; }
+  try {
+    const res = await fetch('/api/auth/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken }
+    });
+    const data = await res.json();
+    if (data.valid) {
+      currentUser = data.user;
+      hideLoginScreen();
+    } else {
+      localStorage.removeItem('traveltalk_token');
+      authToken = null;
+      showLoginScreen();
+    }
+  } catch (e) {
+    // Network error — allow offline usage if token exists
+    hideLoginScreen();
+  }
+}
+
+function showLoginScreen() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.querySelector('.app').style.display = 'none';
+}
+
+function hideLoginScreen() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.querySelector('.app').style.display = 'flex';
+  if (currentUser) {
+    document.getElementById('userName').textContent = currentUser.name;
+    document.getElementById('userMenu').style.display = 'flex';
+  }
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const code = document.getElementById('inviteCodeInput').value.trim();
+  const name = document.getElementById('nameInput').value.trim();
+  const errorEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  if (!code || !name) return;
+
+  btn.disabled = true; btn.textContent = '...';
+  errorEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.toUpperCase(), name, device_id: getDeviceId() })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Ошибка входа'; return; }
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('traveltalk_token', data.token);
+    hideLoginScreen();
+  } catch (e) {
+    errorEl.textContent = 'Ошибка сети. Попробуйте ещё раз.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Войти';
+  }
+}
+
+function logout() {
+  fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => {});
+  localStorage.removeItem('traveltalk_token');
+  authToken = null; currentUser = null;
+  document.getElementById('userMenu').style.display = 'none';
+  showLoginScreen();
+}
+
+// ===== SAVE HELPERS =====
+function saveTranslation(mode, srcLang, tgtLang, sourceText, translatedText, metadata) {
+  if (!authToken) return;
+  fetch('/api/history/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ mode, source_lang: srcLang, target_lang: tgtLang, source_text: sourceText, translated_text: translatedText, metadata: metadata || {} })
+  }).catch(() => {});
+}
+
+async function startDialogSession() {
+  if (!authToken) return;
+  dialogMessageSeq = 0;
+  try {
+    const res = await fetch('/api/history/dialog-start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ source_lang: sourceLang, target_lang: targetLang })
+    });
+    const data = await res.json();
+    if (res.ok) currentDialogSessionId = data.session_id;
+  } catch (e) {}
+}
+
+function saveDialogMessages(srcLangCode, sourceText, tgtLangCode, translatedText, detectedGender) {
+  if (!authToken || !currentDialogSessionId) return;
+  dialogMessageSeq += 1;
+  const srcSeq = dialogMessageSeq;
+  dialogMessageSeq += 1;
+  const tgtSeq = dialogMessageSeq;
+  fetch('/api/history/dialog-message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({
+      dialog_session_id: currentDialogSessionId,
+      messages: [
+        { lang_code: srcLangCode, role: 'source', text: sourceText, detected_gender: null, seq_order: srcSeq },
+        { lang_code: tgtLangCode, role: 'translation', text: translatedText, detected_gender: detectedGender || null, seq_order: tgtSeq }
+      ]
+    })
+  }).catch(() => {});
+}
+
+// ===== HISTORY UI =====
+let historyPage = 1;
+let historyType = 'all';
+let historyLoading = false;
+
+function toggleHistory() {
+  const overlay = document.getElementById('historyOverlay');
+  if (overlay.classList.contains('hidden')) {
+    overlay.classList.remove('hidden');
+    historyPage = 1;
+    loadHistory();
+  } else {
+    overlay.classList.add('hidden');
+  }
+}
+
+function switchHistoryTab(btn, type) {
+  document.querySelectorAll('.history-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  historyType = type;
+  historyPage = 1;
+  loadHistory();
+}
+
+async function loadHistory() {
+  if (historyLoading || !authToken) return;
+  historyLoading = true;
+  const list = document.getElementById('historyList');
+  if (historyPage === 1) list.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Загрузка...</div>';
+
+  try {
+    if (historyType === 'dialog') {
+      const res = await fetch('/api/history/dialogs?page=' + historyPage + '&limit=20', { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (historyPage === 1) list.innerHTML = '';
+      if (!data.dialogs || data.dialogs.length === 0) {
+        if (historyPage === 1) list.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Диалогов пока нет</div>';
+        document.getElementById('historyLoadMore').classList.add('hidden');
+      } else {
+        data.dialogs.forEach(d => {
+          const el = document.createElement('div');
+          el.className = 'history-item';
+          const date = new Date(d.created_at).toLocaleString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+          let msgs = '';
+          if (d.messages) d.messages.forEach(m => {
+            msgs += '<div class="history-dialog-msg"><span style="font-size:11px;color:var(--sea)">' + (m.lang_code || '') + '</span> ' + escapeHtml(m.text) + '</div>';
+          });
+          el.innerHTML = '<div class="history-item-header"><span class="history-item-mode">Диалог</span><span class="history-item-date">' + date + '</span></div>' + msgs;
+          list.appendChild(el);
+        });
+        document.getElementById('historyLoadMore').classList.toggle('hidden', data.dialogs.length < 20);
+      }
+    } else {
+      const mode = historyType === 'all' ? '' : '&mode=' + historyType;
+      const res = await fetch('/api/history/list?page=' + historyPage + '&limit=20' + mode, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (historyPage === 1) list.innerHTML = '';
+      if (!data.translations || data.translations.length === 0) {
+        if (historyPage === 1) list.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Переводов пока нет</div>';
+        document.getElementById('historyLoadMore').classList.add('hidden');
+      } else {
+        data.translations.forEach(t => {
+          const el = document.createElement('div');
+          el.className = 'history-item';
+          const date = new Date(t.created_at).toLocaleString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+          const modeNames = { text: 'Текст', photo: 'Фото', voice: 'Голос', file: 'Файл' };
+          el.innerHTML = '<div class="history-item-header"><span class="history-item-mode">' + (modeNames[t.mode] || t.mode) + '</span><span class="history-item-date">' + date + '</span></div>' +
+            '<div class="history-item-source">' + escapeHtml((t.source_text || '').substring(0, 200)) + '</div>' +
+            '<div class="history-item-text">' + escapeHtml((t.translated_text || '').substring(0, 300)) + '</div>' +
+            '<div class="history-item-langs">' + (t.source_lang || '') + ' → ' + (t.target_lang || '') + '</div>';
+          list.appendChild(el);
+        });
+        document.getElementById('historyLoadMore').classList.toggle('hidden', data.translations.length < 20);
+      }
+    }
+  } catch (e) {
+    if (historyPage === 1) list.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Ошибка загрузки</div>';
+  }
+  historyLoading = false;
+}
+
+function loadMoreHistory() {
+  historyPage++;
+  loadHistory();
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 // ===== LANGUAGE CONFIG =====
 const LANGS = {
   'ru':    { name: 'Русский',    flagCode: 'ru', speech: 'ru-RU',  tts: 'ru-RU' },
@@ -1207,9 +1522,11 @@ function getTargetName() { return LANG_NAMES_FOR_PROMPT[targetLang]; }
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
-  initTabs();
-  updateLangs();
-  updateVoiceGenderUI();
+  checkSession().then(() => {
+    initTabs();
+    updateLangs();
+    updateVoiceGenderUI();
+  });
 });
 
 function toggleVoiceGender() {
@@ -1253,6 +1570,7 @@ function updateLangs() {
   voiceNextLang = sourceLang;
   // Clear dialog history on language change
   dialogFirstMessage = true;
+  currentDialogSessionId = null;
   const dialogContainer = document.getElementById('dialogMessages');
   if (dialogContainer) {
     dialogContainer.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Нажмите на микрофон и произнесите фразу.<br>Перевод будет озвучен автоматически.</div>';
@@ -1313,7 +1631,7 @@ function toggleVoiceLang() {
 async function callTranslate(systemPrompt, userContent, maxTokens, signal) {
   const opts = {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({
       system: systemPrompt,
       content: userContent,
@@ -1324,6 +1642,7 @@ async function callTranslate(systemPrompt, userContent, maxTokens, signal) {
 
   const res = await fetch('/api/translate', opts);
 
+  if (res.status === 401) { showLoginScreen(); throw new Error('Unauthorized'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'API error: ' + res.status);
   return data.text;
@@ -1388,6 +1707,7 @@ async function translateText() {
     document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
     prefetchTts(r.text, LANGS[toLang].tts);
+    saveTranslation('text', r.from, toLang, text, r.text);
   } catch (e) {
     if (e.name !== 'AbortError') {
       showToast('Ошибка: ' + e.message);
@@ -1447,7 +1767,7 @@ async function translatePhoto() {
 
     const res = await fetch('/api/translate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
         system: 'You are an OCR and translation assistant. First, extract ALL visible text from the image. Then translate it to ' + getTargetName() + '. Detect the source language automatically. IMPORTANT: Provide a proper semantic translation of the meaning, not a transliteration or phonetic transcription into another script. Format your response as:\nOCR: [extracted text]\nTRANSLATION: [translated text]',
         content: [
@@ -1458,6 +1778,7 @@ async function translatePhoto() {
       }),
       signal: currentAbortController.signal
     });
+    if (res.status === 401) { showLoginScreen(); throw new Error('Unauthorized'); }
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'API error');
@@ -1474,6 +1795,9 @@ async function translatePhoto() {
       document.getElementById('photoTransText').dataset.lang = LANGS[targetLang].tts;
       document.getElementById('photoTransResult').classList.add('visible');
       prefetchTts(transMatch[1].trim(), LANGS[targetLang].tts);
+    }
+    if (ocrMatch && transMatch) {
+      saveTranslation('photo', sourceLang, targetLang, ocrMatch[1].trim(), transMatch[1].trim());
     }
   } catch (e) {
     if (e.name !== 'AbortError') {
@@ -1563,6 +1887,7 @@ async function toggleVoiceRecording() {
         document.getElementById('voiceResultText').dataset.lang = LANGS[toLang].tts;
         document.getElementById('voiceResult').classList.add('visible');
         prefetchTts(r.text, LANGS[toLang].tts);
+        saveTranslation('voice', r.from, toLang, finalText.trim(), r.text);
         flipVoiceLang();
       } catch (e) {
         if (e.name !== 'AbortError') { showToast('Ошибка: ' + e.message); }
@@ -1722,6 +2047,9 @@ async function sendDialog() {
   if (!text) return;
   input.value = '';
 
+  // Start dialog session on first message
+  if (dialogFirstMessage) { startDialogSession(); }
+
   addLoadingBubble();
   currentAbortController = new AbortController();
 
@@ -1738,6 +2066,7 @@ async function sendDialog() {
     removeLoadingBubble();
     addDialogMessage(text, fromLang, false);
     addDialogMessage(r.text, toLang, true);
+    saveDialogMessages(fromLang, text, toLang, r.text, null);
     flipDialogLang();
   } catch (e) {
     removeLoadingBubble();
@@ -1808,6 +2137,7 @@ async function toggleDialogRecording() {
     const detectedGender = stopPitchDetection();
 
     if (finalText.trim()) {
+      if (dialogFirstMessage) { startDialogSession(); }
       addLoadingBubble();
       currentAbortController = new AbortController();
 
@@ -1824,6 +2154,7 @@ async function toggleDialogRecording() {
         removeLoadingBubble();
         addDialogMessage(finalText.trim(), fromLang, false, detectedGender);
         addDialogMessage(r.text, toLang, true, detectedGender);
+        saveDialogMessages(fromLang, finalText.trim(), toLang, r.text, detectedGender);
         flipDialogLang();
       } catch (e) {
         removeLoadingBubble();
@@ -1944,10 +2275,11 @@ async function fetchTtsBuffer(text, lang, signal, genderOverride) {
   const voice = genderOverride || voiceGender;
   const res = await fetch('/api/tts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ text, voice, lang }),
     signal
   });
+  if (res.status === 401) { showLoginScreen(); throw new Error('Unauthorized'); }
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     console.warn('[TTS] API error:', res.status, errBody);
@@ -2334,7 +2666,7 @@ async function translateFile() {
     if (uploadedFileType === 'image') {
       const res = await fetch('/api/translate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           system: 'You are an OCR and translation assistant. Extract ALL visible text from the image. Then translate the extracted text to ' + getTargetName() + '. Detect the source language automatically. IMPORTANT: Provide a proper semantic translation, not transliteration. Reply with ONLY the translated text, no explanations or labels.',
           content: [
@@ -2352,11 +2684,12 @@ async function translateFile() {
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
       prefetchTts(data.text, LANGS[targetLang].tts);
+      saveTranslation('file', sourceLang, targetLang, '[image: ' + uploadedFileName + ']', data.text.substring(0, 2000), { filename: uploadedFileName });
 
     } else if (uploadedFileType === 'pdf') {
       const res = await fetch('/api/translate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           system: 'You are a document translation assistant. Extract ALL text from this PDF document. Then translate it to ' + getTargetName() + '. Detect the source language automatically. Keep the structure and formatting. IMPORTANT: Provide a proper semantic translation, not transliteration. Reply with ONLY the translated text, no explanations or labels.',
           content: [
@@ -2374,6 +2707,7 @@ async function translateFile() {
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
       prefetchTts(data.text, LANGS[targetLang].tts);
+      saveTranslation('file', sourceLang, targetLang, '[pdf: ' + uploadedFileName + ']', data.text.substring(0, 2000), { filename: uploadedFileName });
 
     } else {
       // Text file — chunked translation
@@ -2407,7 +2741,7 @@ async function translateFile() {
 
         const res = await fetch('/api/translate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({
             system: 'You are a professional translator. Translate the following text from ' + getSourceName() + ' to ' + getTargetName() + '. Keep the original formatting (line breaks, indentation, structure). Translate ONLY the text content, preserving any markup tags, code, or special characters. IMPORTANT: Provide a proper semantic translation, not a transliteration or phonetic transcription into another script. Reply with ONLY the translated text, no explanations.',
             content: chunks[i],
@@ -2426,6 +2760,7 @@ async function translateFile() {
       document.getElementById('fileResultLabel').textContent = LANGS[targetLang].name;
       document.getElementById('fileResult').classList.add('visible');
       prefetchTts(results.join('\n'), LANGS[targetLang].tts);
+      saveTranslation('file', sourceLang, targetLang, uploadedFileContent.substring(0, 500), results.join('\n').substring(0, 2000), { filename: uploadedFileName });
     }
   } catch (e) {
     if (e.name === 'AbortError') {
