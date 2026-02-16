@@ -1,7 +1,14 @@
-import { supabaseRequest, validateAdminSecret } from '../_supabase.js';
+import { supabaseRequest, validateAdminSecret, validateAdminToken } from '../_supabase.js';
+
+async function checkAdmin(req) {
+  // Support both legacy x-admin-secret and new token-based auth
+  if (validateAdminSecret(req)) return true;
+  return await validateAdminToken(req);
+}
 
 export default async function handler(req, res) {
-  if (!validateAdminSecret(req)) {
+  const isAdmin = await checkAdmin(req);
+  if (!isAdmin) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

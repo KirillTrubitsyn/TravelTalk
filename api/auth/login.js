@@ -5,9 +5,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { code, name, device_id } = req.body;
-  if (!code || !name || !device_id) {
-    return res.status(400).json({ error: 'Code, name and device_id are required' });
+  const { code, device_id } = req.body;
+  if (!code || !device_id) {
+    return res.status(400).json({ error: 'Code and device_id are required' });
   }
 
   try {
@@ -29,6 +29,9 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Код приглашения исчерпан' });
     }
 
+    // Use invite code name as the user name
+    const userName = inviteCode.name;
+
     // 3. Check existing user for this device + code
     const existingUserRes = await supabaseRequest(
       `users?invite_code_id=eq.${inviteCode.id}&device_id=eq.${encodeURIComponent(device_id)}&select=*`
@@ -37,14 +40,14 @@ export default async function handler(req, res) {
     let user;
 
     if (existingUsers.length > 0) {
-      // Reuse existing user, update name
+      // Reuse existing user, sync name from invite code
       user = existingUsers[0];
-      if (user.name !== name) {
+      if (user.name !== userName) {
         await supabaseRequest(`users?id=eq.${user.id}`, {
           method: 'PATCH',
-          body: { name }
+          body: { name: userName }
         });
-        user.name = name;
+        user.name = userName;
       }
     } else {
       // 4. Check device limit
@@ -64,7 +67,7 @@ export default async function handler(req, res) {
         method: 'POST',
         body: {
           invite_code_id: inviteCode.id,
-          name,
+          name: userName,
           device_id
         }
       });

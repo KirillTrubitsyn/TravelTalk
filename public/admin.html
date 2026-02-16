@@ -9,6 +9,7 @@
   --bg: #FFF9F2; --surface: #FFFFFF; --surfaceAlt: #FFF3E6; --text: #1F2937;
   --muted: #6B7280; --border: rgba(31,41,55,0.08); --terracotta: #F26A3D;
   --sea: #1C8C7A; --seaSoft: rgba(28,140,122,0.12); --danger: #ef4444;
+  --success: #10B981; --warning: #F59E0B;
   --cta: linear-gradient(90deg, #F26A3D 0%, #FFB15C 100%);
   --ctaShadow: 0 4px 12px rgba(242,106,61,0.25);
   --r12: 12px; --r16: 16px;
@@ -16,55 +17,120 @@
 }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100dvh; }
-.container { max-width:700px; margin:0 auto; padding:20px; }
 
-/* Auth */
+/* Auth screen */
 .auth-screen { display:flex; align-items:center; justify-content:center; min-height:100dvh; padding:20px; }
 .auth-screen.hidden { display:none; }
-.auth-card { max-width:340px; width:100%; text-align:center; }
-.auth-card h1 { font-size:22px; color:var(--sea); margin-bottom:16px; }
+.auth-card { max-width:340px; width:100%; text-align:center; display:flex; flex-direction:column; align-items:center; gap:16px; }
+.auth-card h1 { font-size:24px; color:var(--sea); }
 .auth-card h1 span { color:var(--terracotta); }
-.auth-input { width:100%; padding:12px 16px; border-radius:var(--r12); border:1px solid var(--border); background:var(--surface); font-size:15px; font-family:var(--font); margin-bottom:12px; outline:none; }
-.auth-input:focus { border-color:var(--terracotta); }
-.auth-btn { width:100%; padding:12px; border:none; border-radius:var(--r12); background:var(--cta); color:#fff; font-size:15px; font-weight:600; cursor:pointer; font-family:var(--font); }
-.auth-error { color:var(--danger); font-size:13px; margin-top:8px; min-height:20px; }
+.auth-card .subtitle { font-size:13px; color:var(--muted); }
+.auth-input-wrap { position:relative; width:100%; }
+.auth-input { width:100%; padding:14px 48px 14px 16px; border-radius:var(--r16); border:1px solid var(--border); background:var(--surface); font-size:15px; font-family:var(--font); outline:none; }
+.auth-input:focus { border-color:var(--terracotta); box-shadow:0 0 0 3px rgba(242,106,61,0.15); }
+.auth-toggle-vis { position:absolute; right:14px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; color:var(--muted); padding:4px; display:flex; }
+.auth-toggle-vis:hover { color:var(--text); }
+.auth-btn { width:100%; padding:14px; border:none; border-radius:var(--r16); background:var(--cta); color:#fff; font-size:16px; font-weight:600; cursor:pointer; font-family:var(--font); box-shadow:var(--ctaShadow); }
+.auth-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.auth-error { color:var(--danger); font-size:13px; min-height:20px; }
+.auth-back { font-size:13px; color:var(--muted); text-decoration:none; }
+.auth-back:hover { color:var(--sea); }
 
 /* Dashboard */
 .dashboard { display:none; }
 .dashboard.visible { display:block; }
+.container { max-width:800px; margin:0 auto; padding:16px; }
+
+/* Header */
 .header { display:flex; justify-content:space-between; align-items:center; padding:16px 0; margin-bottom:16px; border-bottom:1px solid var(--border); }
-.header h1 { font-size:18px; color:var(--sea); }
+.header h1 { font-size:20px; color:var(--sea); }
 .header h1 span { color:var(--terracotta); }
 .header-actions { display:flex; gap:8px; align-items:center; }
+
+/* Buttons */
 .btn { padding:8px 16px; border-radius:var(--r12); border:1px solid var(--border); background:var(--surface); font-family:var(--font); font-size:13px; cursor:pointer; transition:all 0.2s; }
 .btn:hover { background:var(--surfaceAlt); }
 .btn-primary { background:var(--cta); color:#fff; border:none; font-weight:600; box-shadow:var(--ctaShadow); }
+.btn-primary:hover { filter:brightness(1.05); }
 .btn-danger { color:var(--danger); border-color:var(--danger); }
 .btn-danger:hover { background:#fef2f2; }
 .btn-sm { padding:4px 10px; font-size:12px; }
+.btn-sea { background:var(--seaSoft); color:var(--sea); border:none; font-weight:600; }
+
+/* Tabs */
+.nav-tabs { display:flex; gap:0; background:var(--surface); border-radius:var(--r16); border:1px solid var(--border); overflow:hidden; margin-bottom:20px; }
+.nav-tab { flex:1; padding:12px 8px; border:none; background:transparent; color:var(--muted); font-family:var(--font); font-size:14px; font-weight:500; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:6px; }
+.nav-tab.active { background:var(--seaSoft); color:var(--sea); font-weight:600; }
+.nav-tab svg { width:16px; height:16px; }
+
+/* Stats cards */
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:16px; text-align:center; }
+.stat-value { font-size:28px; font-weight:700; color:var(--sea); }
+.stat-label { font-size:12px; color:var(--muted); margin-top:4px; }
+
+/* Chart section */
+.chart-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:16px; margin-bottom:16px; }
+.chart-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:12px; }
+.chart-bar-row { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.chart-bar-label { font-size:12px; color:var(--muted); min-width:80px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chart-bar-track { flex:1; height:24px; background:var(--surfaceAlt); border-radius:6px; overflow:hidden; position:relative; }
+.chart-bar-fill { height:100%; border-radius:6px; transition:width 0.5s ease; min-width:2px; }
+.chart-bar-value { font-size:11px; font-weight:600; color:var(--text); min-width:30px; text-align:right; }
+.chart-bar-fill.terracotta { background:linear-gradient(90deg, #F26A3D, #FFB15C); }
+.chart-bar-fill.sea { background:linear-gradient(90deg, #1C8C7A, #34D399); }
+.chart-bar-fill.blue { background:linear-gradient(90deg, #3B82F6, #93C5FD); }
 
 /* Create form */
-.create-form { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:16px; margin-bottom:16px; display:none; }
+.create-form { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:20px; margin-bottom:16px; display:none; }
 .create-form.visible { display:block; }
-.create-form h3 { font-size:15px; margin-bottom:12px; color:var(--sea); }
+.create-form h3 { font-size:16px; margin-bottom:14px; color:var(--sea); }
 .form-row { display:flex; gap:10px; margin-bottom:10px; }
 .form-row input { flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:var(--r12); font-family:var(--font); font-size:14px; background:var(--surface); outline:none; }
-.form-row input:focus { border-color:var(--terracotta); }
+.form-row input:focus { border-color:var(--terracotta); box-shadow:0 0 0 3px rgba(242,106,61,0.1); }
+.form-row input::placeholder { color:var(--muted); }
+.form-actions { display:flex; gap:8px; margin-top:12px; }
 
 /* Code cards */
-.code-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:14px; margin-bottom:10px; }
-.code-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.code-value { font-size:16px; font-weight:700; font-family:monospace; color:var(--terracotta); letter-spacing:1px; }
-.code-name { font-size:13px; color:var(--muted); }
-.code-meta { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:8px; }
+.code-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:16px; margin-bottom:10px; transition:box-shadow 0.2s; }
+.code-card:hover { box-shadow:0 4px 12px rgba(31,41,55,0.06); }
+.code-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+.code-value { font-size:17px; font-weight:700; font-family:monospace; color:var(--terracotta); letter-spacing:1px; }
+.code-name { font-size:13px; color:var(--text); font-weight:500; margin-top:2px; }
+.code-desc { font-size:12px; color:var(--muted); }
+.code-meta { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:10px; }
 .code-meta span { display:flex; align-items:center; gap:4px; }
-.code-status { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; }
+.code-status { display:inline-block; padding:3px 10px; border-radius:8px; font-size:11px; font-weight:600; }
 .code-status.active { background:var(--seaSoft); color:var(--sea); }
 .code-status.inactive { background:#fef2f2; color:var(--danger); }
-.code-users { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
-.code-user { font-size:12px; color:var(--muted); padding:4px 0; display:flex; justify-content:space-between; }
-.code-actions { display:flex; gap:6px; margin-top:8px; }
+.code-users { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.code-user { font-size:12px; color:var(--muted); padding:5px 0; display:flex; justify-content:space-between; align-items:center; }
+.code-user-name { font-weight:500; color:var(--text); }
+.code-user-device { font-family:monospace; font-size:11px; }
+.code-actions { display:flex; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 .empty { text-align:center; padding:40px 0; color:var(--muted); font-size:14px; }
+
+/* Table */
+.table-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:16px; margin-bottom:16px; overflow-x:auto; }
+.table-section h3 { font-size:14px; font-weight:600; margin-bottom:12px; }
+.data-table { width:100%; border-collapse:collapse; font-size:13px; }
+.data-table th { text-align:left; padding:8px 10px; color:var(--muted); font-weight:500; font-size:12px; border-bottom:1px solid var(--border); }
+.data-table td { padding:8px 10px; border-bottom:1px solid var(--border); }
+.data-table tr:last-child td { border-bottom:none; }
+
+/* Activity graph */
+.activity-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:3px; }
+.activity-cell { aspect-ratio:1; border-radius:3px; background:var(--surfaceAlt); }
+.activity-cell.l1 { background:rgba(28,140,122,0.2); }
+.activity-cell.l2 { background:rgba(28,140,122,0.4); }
+.activity-cell.l3 { background:rgba(28,140,122,0.6); }
+.activity-cell.l4 { background:rgba(28,140,122,0.85); }
+
+@media (max-width: 500px) {
+  .stats-grid { grid-template-columns:repeat(2, 1fr); }
+  .form-row { flex-direction:column; }
+  .chart-bar-label { min-width:60px; font-size:11px; }
+}
 </style>
 </head>
 <body>
@@ -72,10 +138,17 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 <!-- Auth Screen -->
 <div class="auth-screen" id="authScreen">
   <div class="auth-card">
-    <h1>Travel<span>Talk</span> Admin</h1>
-    <input class="auth-input" id="secretInput" type="password" placeholder="Секретный ключ" onkeydown="if(event.key==='Enter')adminLogin()">
-    <button class="auth-btn" onclick="adminLogin()">Войти</button>
+    <h1>Travel<span>Talk</span></h1>
+    <div class="subtitle">Панель администратора</div>
+    <div class="auth-input-wrap">
+      <input class="auth-input" id="passwordInput" type="password" placeholder="Пароль администратора" onkeydown="if(event.key==='Enter')doAdminLogin()">
+      <button class="auth-toggle-vis" onclick="togglePassVis()" type="button">
+        <svg id="passVisIcon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <button class="auth-btn" id="authBtn" onclick="doAdminLogin()">Войти</button>
     <div class="auth-error" id="authError"></div>
+    <a href="/" class="auth-back">← Вернуться к приложению</a>
   </div>
 </div>
 
@@ -85,66 +158,161 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
     <div class="header">
       <h1>Travel<span>Talk</span> Admin</h1>
       <div class="header-actions">
-        <button class="btn btn-primary" onclick="toggleCreateForm()">+ Код</button>
-        <button class="btn" onclick="loadCodes()">Обновить</button>
-        <button class="btn btn-danger" onclick="adminLogout()">Выйти</button>
+        <button class="btn" onclick="refreshAll()">Обновить</button>
+        <button class="btn btn-danger" onclick="doAdminLogout()">Выйти</button>
       </div>
     </div>
 
-    <!-- Create Form -->
-    <div class="create-form" id="createForm">
-      <h3>Новый инвайт-код</h3>
-      <div class="form-row">
-        <input id="newName" placeholder="Название *">
-        <input id="newCode" placeholder="Код (авто)">
-      </div>
-      <div class="form-row">
-        <input id="newDesc" placeholder="Описание">
-        <input id="newDeviceLimit" type="number" placeholder="Лимит устройств" value="3" style="max-width:140px">
-      </div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn btn-primary" onclick="createCode()">Создать</button>
-        <button class="btn" onclick="toggleCreateForm()">Отмена</button>
-      </div>
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('codes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Коды
+      </button>
+      <button class="nav-tab" onclick="switchTab('stats')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Статистика
+      </button>
     </div>
 
-    <!-- Codes List -->
-    <div id="codesList"></div>
+    <!-- Codes Tab -->
+    <div id="tabCodes">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="font-size:16px;font-weight:600">Инвайт-коды</h2>
+        <button class="btn btn-primary" onclick="toggleCreateForm()">+ Новый код</button>
+      </div>
+
+      <!-- Create Form -->
+      <div class="create-form" id="createForm">
+        <h3>Новый инвайт-код</h3>
+        <div class="form-row">
+          <input id="newName" placeholder="Имя пользователя *" title="Имя, которое увидит пользователь при входе">
+        </div>
+        <div class="form-row">
+          <input id="newCode" placeholder="Код (авто если пусто)">
+          <input id="newDesc" placeholder="Описание / заметка">
+        </div>
+        <div class="form-row">
+          <input id="newDeviceLimit" type="number" placeholder="Лимит устройств" value="3" min="1" max="100" style="max-width:160px">
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="createCode()">Создать</button>
+          <button class="btn" onclick="toggleCreateForm()">Отмена</button>
+        </div>
+      </div>
+
+      <!-- Codes List -->
+      <div id="codesList"><div class="empty">Загрузка...</div></div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div id="tabStats" style="display:none">
+      <!-- Stats Grid -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-value" id="statCodes">-</div><div class="stat-label">Кодов</div></div>
+        <div class="stat-card"><div class="stat-value" id="statUsers">-</div><div class="stat-label">Пользователей</div></div>
+        <div class="stat-card"><div class="stat-value" id="statTranslations">-</div><div class="stat-label">Переводов</div></div>
+        <div class="stat-card"><div class="stat-value" id="statDialogs">-</div><div class="stat-label">Диалогов</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSessions">-</div><div class="stat-label">Активных сессий</div></div>
+      </div>
+
+      <!-- Usage by mode -->
+      <div class="chart-section" id="chartMode">
+        <div class="chart-title">По типу перевода</div>
+        <div id="chartModeContent"><div class="empty">Загрузка...</div></div>
+      </div>
+
+      <!-- Usage by user -->
+      <div class="chart-section" id="chartUser">
+        <div class="chart-title">По пользователям</div>
+        <div id="chartUserContent"><div class="empty">Загрузка...</div></div>
+      </div>
+
+      <!-- Usage by day -->
+      <div class="chart-section" id="chartDay">
+        <div class="chart-title">Активность по дням (30 дней)</div>
+        <div id="chartDayContent"><div class="empty">Загрузка...</div></div>
+      </div>
+
+      <!-- Language pairs -->
+      <div class="chart-section" id="chartLangs">
+        <div class="chart-title">Языковые пары</div>
+        <div id="chartLangsContent"><div class="empty">Загрузка...</div></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-let adminSecret = sessionStorage.getItem('tt_admin_secret');
+let adminToken = localStorage.getItem('tt_admin_token');
 
 function apiHeaders() {
-  return { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret };
+  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken };
 }
 
-// Auth
-if (adminSecret) { showDashboard(); }
-
-async function adminLogin() {
-  const secret = document.getElementById('secretInput').value.trim();
-  if (!secret) return;
-  adminSecret = secret;
-  sessionStorage.setItem('tt_admin_secret', secret);
+// ===== AUTH =====
+async function checkAdminSession() {
+  if (!adminToken) return;
   try {
-    const res = await fetch('/api/admin/codes', { headers: apiHeaders() });
-    if (res.status === 401) {
-      document.getElementById('authError').textContent = 'Неверный ключ';
-      adminSecret = null;
-      sessionStorage.removeItem('tt_admin_secret');
+    const res = await fetch('/api/admin/validate', {
+      method: 'POST',
+      headers: apiHeaders()
+    });
+    const data = await res.json();
+    if (data.valid) {
+      showDashboard();
+    } else {
+      localStorage.removeItem('tt_admin_token');
+      adminToken = null;
+    }
+  } catch (e) {}
+}
+
+function togglePassVis() {
+  const input = document.getElementById('passwordInput');
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  document.getElementById('passVisIcon').innerHTML = isHidden
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
+
+async function doAdminLogin() {
+  const password = document.getElementById('passwordInput').value.trim();
+  const errorEl = document.getElementById('authError');
+  const btn = document.getElementById('authBtn');
+  if (!password) return;
+
+  btn.disabled = true; btn.textContent = 'Проверка...';
+  errorEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errorEl.textContent = data.error || 'Неверный пароль';
       return;
     }
+    adminToken = data.token;
+    localStorage.setItem('tt_admin_token', data.token);
     showDashboard();
   } catch (e) {
-    document.getElementById('authError').textContent = 'Ошибка сети';
+    errorEl.textContent = 'Ошибка сети';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Войти';
   }
 }
 
-function adminLogout() {
-  adminSecret = null;
-  sessionStorage.removeItem('tt_admin_secret');
+async function doAdminLogout() {
+  try {
+    await fetch('/api/admin/logout', { method: 'POST', headers: apiHeaders() });
+  } catch (e) {}
+  adminToken = null;
+  localStorage.removeItem('tt_admin_token');
   document.getElementById('dashboard').classList.remove('visible');
   document.getElementById('authScreen').classList.remove('hidden');
 }
@@ -152,10 +320,25 @@ function adminLogout() {
 function showDashboard() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('dashboard').classList.add('visible');
-  loadCodes();
+  refreshAll();
 }
 
-// Codes
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'codes' && i === 0) || (tab === 'stats' && i === 1));
+  });
+  document.getElementById('tabCodes').style.display = tab === 'codes' ? 'block' : 'none';
+  document.getElementById('tabStats').style.display = tab === 'stats' ? 'block' : 'none';
+  if (tab === 'stats') loadStats();
+}
+
+function refreshAll() {
+  loadCodes();
+  if (document.getElementById('tabStats').style.display !== 'none') loadStats();
+}
+
+// ===== CODES =====
 async function loadCodes() {
   const list = document.getElementById('codesList');
   list.innerHTML = '<div class="empty">Загрузка...</div>';
@@ -174,10 +357,15 @@ async function loadCodes() {
     data.codes.forEach(c => {
       const users = c.users || [];
       const usersHtml = users.length
-        ? users.map(u => '<div class="code-user"><span>' + esc(u.name) + '</span><span>' + (u.device_id || '').substring(0, 8) + '...</span></div>').join('')
-        : '<div style="font-size:12px;color:var(--muted);padding:4px 0">Нет пользователей</div>';
+        ? users.map(u =>
+            '<div class="code-user"><span class="code-user-name">' + esc(u.name) + '</span><span class="code-user-device">' + (u.device_id || '').substring(0, 12) + '...</span></div>'
+          ).join('')
+        : '<div style="font-size:12px;color:var(--muted);padding:4px 0">Нет подключённых устройств</div>';
 
-      const lastUsed = c.last_used_at ? new Date(c.last_used_at).toLocaleString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'никогда';
+      const lastUsed = c.last_used_at
+        ? new Date(c.last_used_at).toLocaleString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+        : 'никогда';
+      const created = new Date(c.created_at).toLocaleString('ru-RU', { day:'numeric', month:'short', year:'numeric' });
 
       const card = document.createElement('div');
       card.className = 'code-card';
@@ -185,17 +373,26 @@ async function loadCodes() {
         <div class="code-header">
           <div>
             <div class="code-value">${esc(c.code)}</div>
-            <div class="code-name">${esc(c.name)}${c.description ? ' — ' + esc(c.description) : ''}</div>
+            <div class="code-name">${esc(c.name)}</div>
+            ${c.description ? '<div class="code-desc">' + esc(c.description) + '</div>' : ''}
           </div>
           <span class="code-status ${c.is_active ? 'active' : 'inactive'}">${c.is_active ? 'Активен' : 'Отключён'}</span>
         </div>
         <div class="code-meta">
-          <span>Устройства: ${users.length}/${c.device_limit}</span>
-          <span>Использований: ${c.uses_remaining === null ? '∞' : c.uses_remaining}</span>
+          <span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            ${users.length}/${c.device_limit}
+          </span>
+          <span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+            ${c.uses_remaining === null ? '∞' : c.uses_remaining}
+          </span>
+          <span>Создан: ${created}</span>
           <span>Посл. вход: ${lastUsed}</span>
         </div>
         <div class="code-users">${usersHtml}</div>
         <div class="code-actions">
+          <button class="btn btn-sm btn-sea" onclick="copyCode('${esc(c.code)}')" title="Скопировать код">Копировать</button>
           <button class="btn btn-sm" onclick="toggleActive('${c.id}', ${!c.is_active})">${c.is_active ? 'Отключить' : 'Включить'}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteCode('${c.id}', '${esc(c.code)}')">Удалить</button>
         </div>`;
@@ -212,7 +409,7 @@ function toggleCreateForm() {
 
 async function createCode() {
   const name = document.getElementById('newName').value.trim();
-  if (!name) { alert('Название обязательно'); return; }
+  if (!name) { alert('Имя пользователя обязательно'); return; }
 
   const body = {
     name,
@@ -229,9 +426,18 @@ async function createCode() {
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error || 'Ошибка'); return; }
+
+    // Show created code
+    const createdCode = data.code?.code || '';
+    if (createdCode) {
+      alert('Код создан: ' + createdCode);
+      copyCode(createdCode);
+    }
+
     document.getElementById('newName').value = '';
     document.getElementById('newCode').value = '';
     document.getElementById('newDesc').value = '';
+    document.getElementById('newDeviceLimit').value = '3';
     toggleCreateForm();
     loadCodes();
   } catch (e) {
@@ -261,11 +467,96 @@ async function deleteCode(id, code) {
   } catch (e) {}
 }
 
+function copyCode(code) {
+  navigator.clipboard.writeText(code).catch(() => {});
+}
+
+// ===== STATS =====
+async function loadStats() {
+  try {
+    const res = await fetch('/api/admin/stats?days=30', { headers: apiHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // Totals
+    document.getElementById('statCodes').textContent = data.totals.codes;
+    document.getElementById('statUsers').textContent = data.totals.users;
+    document.getElementById('statTranslations').textContent = data.totals.translations;
+    document.getElementById('statDialogs').textContent = data.totals.dialogs;
+    document.getElementById('statSessions').textContent = data.totals.active_sessions;
+
+    // By mode chart
+    const modeNames = { text: 'Текст', photo: 'Фото', voice: 'Голос', file: 'Файл', dialog: 'Диалог' };
+    renderBarChart('chartModeContent', data.by_mode, modeNames, 'terracotta');
+
+    // By user chart
+    const userData = {};
+    Object.entries(data.by_user || {}).forEach(([name, val]) => {
+      userData[name] = (val.translations || 0) + (val.dialogs || 0);
+    });
+    renderBarChart('chartUserContent', userData, null, 'sea');
+
+    // By day chart
+    renderDayChart('chartDayContent', data.by_day || {});
+
+    // Language pairs
+    renderBarChart('chartLangsContent', data.lang_pairs || {}, null, 'blue');
+
+  } catch (e) {
+    console.error('Stats error:', e);
+  }
+}
+
+function renderBarChart(containerId, data, nameMap, colorClass) {
+  const el = document.getElementById(containerId);
+  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) { el.innerHTML = '<div class="empty" style="padding:16px 0">Нет данных</div>'; return; }
+
+  const max = Math.max(...entries.map(e => e[1]));
+  el.innerHTML = entries.map(([key, val]) => {
+    const label = nameMap ? (nameMap[key] || key) : key;
+    const pct = max > 0 ? (val / max * 100) : 0;
+    return `<div class="chart-bar-row">
+      <div class="chart-bar-label" title="${esc(label)}">${esc(label)}</div>
+      <div class="chart-bar-track"><div class="chart-bar-fill ${colorClass}" style="width:${pct}%"></div></div>
+      <div class="chart-bar-value">${val}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDayChart(containerId, byDay) {
+  const el = document.getElementById(containerId);
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    const key = d.toISOString().substring(0, 10);
+    const dayName = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    days.push({ key, label: dayName, value: byDay[key] || 0 });
+  }
+
+  const max = Math.max(...days.map(d => d.value), 1);
+
+  // Show last 14 days as bars for readability
+  const recent = days.slice(-14);
+  el.innerHTML = recent.map(d => {
+    const pct = (d.value / max * 100);
+    return `<div class="chart-bar-row">
+      <div class="chart-bar-label">${d.label}</div>
+      <div class="chart-bar-track"><div class="chart-bar-fill sea" style="width:${pct}%"></div></div>
+      <div class="chart-bar-value">${d.value}</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== UTILS =====
 function esc(str) {
   const d = document.createElement('div');
   d.textContent = str || '';
   return d.innerHTML;
 }
+
+// ===== INIT =====
+checkAdminSession();
 </script>
 </body>
 </html>

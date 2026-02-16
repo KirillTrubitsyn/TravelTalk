@@ -49,3 +49,17 @@ export function validateAdminSecret(req) {
   if (!adminSecret || !secret) return false;
   return secret === adminSecret;
 }
+
+// Admin token-based auth (stored in Supabase admin_tokens table)
+export async function validateAdminToken(req) {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const token = authHeader.slice(7);
+
+  const res = await supabaseRequest(
+    `admin_tokens?token=eq.${encodeURIComponent(token)}&expires_at=gt.${new Date().toISOString()}&select=id`
+  );
+  if (!res.ok) return false;
+  const tokens = await res.json();
+  return tokens.length > 0;
+}
