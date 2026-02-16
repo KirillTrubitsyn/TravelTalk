@@ -190,49 +190,31 @@ body {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 .lang-flag {
-  display: none;
-  padding-left: 10px;
+  display: flex;
+  align-items: center;
+  padding: 10px;
   pointer-events: none;
   flex-shrink: 0;
   line-height: 0;
 }
-@media (min-width: 480px) {
-  .lang-flag { display: flex; align-items: center; }
-}
-.lang-select-wrap::after {
-  content: '\25BE';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--muted);
-  font-size: 11px;
-  pointer-events: none;
-}
 .lang-select {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  padding: 10px 8px;
-  border-radius: var(--r12);
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
   border: none;
   background: transparent;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  text-align: center;
 }
 .lang-select option {
   background: var(--surface);
   color: var(--text);
 }
-.lang-select-wrap.source .lang-select { color: var(--terracotta); }
-.lang-select-wrap.target .lang-select { color: var(--sea); }
 
 .lang-swap {
   width: 38px;
