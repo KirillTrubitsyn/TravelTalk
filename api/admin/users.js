@@ -1,11 +1,17 @@
-import { supabaseRequest, validateAdminSecret } from '../_supabase.js';
+import { supabaseRequest, validateAdminSecret, validateAdminToken } from '../_supabase.js';
+
+async function checkAdmin(req) {
+  if (validateAdminSecret(req)) return true;
+  return await validateAdminToken(req);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!validateAdminSecret(req)) {
+  const isAdmin = await checkAdmin(req);
+  if (!isAdmin) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

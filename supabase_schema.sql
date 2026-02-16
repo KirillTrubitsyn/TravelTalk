@@ -84,6 +84,17 @@ CREATE TABLE dialog_messages (
 
 CREATE INDEX idx_dialog_messages_session ON dialog_messages(dialog_session_id, seq_order);
 
+-- ===== ADMIN TOKENS =====
+CREATE TABLE admin_tokens (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  token TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_admin_tokens_token ON admin_tokens(token);
+CREATE INDEX idx_admin_tokens_expires_at ON admin_tokens(expires_at);
+
 -- ===== ROW LEVEL SECURITY =====
 ALTER TABLE invite_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -91,6 +102,7 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE translations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dialog_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dialog_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_tokens ENABLE ROW LEVEL SECURITY;
 
 -- Service role has full access (bypasses RLS)
 -- No anon policies: all access goes through our API with service_role key

@@ -937,6 +937,14 @@ body {
 .login-btn:hover { filter:brightness(1.05); }
 .login-btn:disabled { opacity:0.5;cursor:not-allowed; }
 .login-error { font-size:13px;color:var(--danger);min-height:20px; }
+.login-tabs { display:flex;gap:0;width:100%;background:var(--surface);border-radius:var(--r16);border:1px solid var(--border);overflow:hidden;margin-bottom:4px; }
+.login-tab { flex:1;padding:10px 4px;border:none;background:transparent;color:var(--muted);font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s; }
+.login-tab.active { background:var(--seaSoft);color:var(--sea);font-weight:600; }
+.login-admin-link { font-size:13px;color:var(--muted);cursor:pointer;transition:color 0.2s;text-decoration:none; }
+.login-admin-link:hover { color:var(--sea); }
+.login-code-input-wrap { position:relative;width:100%; }
+.login-toggle-vis { position:absolute;right:14px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;color:var(--muted);padding:4px;display:flex;align-items:center; }
+.login-toggle-vis:hover { color:var(--text); }
 
 /* ===== HEADER USER MENU ===== */
 .header-icon-btn { border:none;background:none;cursor:pointer;color:var(--muted);padding:8px;border-radius:var(--r12);min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;transition:all 0.2s; }
@@ -975,11 +983,31 @@ body {
     <img class="login-logo" src="icons/icon.svg" alt="TravelTalk">
     <div class="login-title">Travel<span>Talk</span></div>
     <div class="login-subtitle">Мультиязычный переводчик для путешествий</div>
-    <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
-      <input class="login-input" id="inviteCodeInput" type="text" placeholder="Код приглашения" autocomplete="off" required>
-      <input class="login-input" id="nameInput" type="text" placeholder="Ваше имя" autocomplete="off" required>
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchLoginTab('code')">Вход по коду</button>
+      <button class="login-tab" onclick="switchLoginTab('admin')">Администратор</button>
+    </div>
+    <!-- Code login form -->
+    <form class="login-form" id="loginFormCode" onsubmit="handleLogin(event)">
+      <div class="login-code-input-wrap">
+        <input class="login-input" id="inviteCodeInput" type="password" placeholder="Код приглашения" autocomplete="off" style="text-transform:uppercase;padding-right:48px" required>
+        <button type="button" class="login-toggle-vis" onclick="toggleCodeVisibility()" title="Показать код">
+          <svg id="codeVisIcon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
       <button class="login-btn" type="submit" id="loginBtn">Войти</button>
       <div class="login-error" id="loginError"></div>
+    </form>
+    <!-- Admin login form -->
+    <form class="login-form" id="loginFormAdmin" style="display:none" onsubmit="handleAdminLogin(event)">
+      <div class="login-code-input-wrap">
+        <input class="login-input" id="adminPasswordInput" type="password" placeholder="Пароль администратора" autocomplete="off" style="padding-right:48px" required>
+        <button type="button" class="login-toggle-vis" onclick="toggleAdminPassVisibility()" title="Показать пароль">
+          <svg id="adminVisIcon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <button class="login-btn" type="submit" id="adminLoginBtn">Войти как администратор</button>
+      <div class="login-error" id="adminLoginError"></div>
     </form>
   </div>
 </div>
@@ -1312,22 +1340,49 @@ function hideLoginScreen() {
   }
 }
 
+function switchLoginTab(tab) {
+  const tabs = document.querySelectorAll('.login-tab');
+  tabs[0].classList.toggle('active', tab === 'code');
+  tabs[1].classList.toggle('active', tab === 'admin');
+  document.getElementById('loginFormCode').style.display = tab === 'code' ? 'flex' : 'none';
+  document.getElementById('loginFormAdmin').style.display = tab === 'admin' ? 'flex' : 'none';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('adminLoginError').textContent = '';
+}
+
+function toggleCodeVisibility() {
+  const input = document.getElementById('inviteCodeInput');
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  document.getElementById('codeVisIcon').innerHTML = isHidden
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
+
+function toggleAdminPassVisibility() {
+  const input = document.getElementById('adminPasswordInput');
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  document.getElementById('adminVisIcon').innerHTML = isHidden
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const code = document.getElementById('inviteCodeInput').value.trim();
-  const name = document.getElementById('nameInput').value.trim();
   const errorEl = document.getElementById('loginError');
   const btn = document.getElementById('loginBtn');
-  if (!code || !name) return;
+  if (!code) return;
 
-  btn.disabled = true; btn.textContent = '...';
+  btn.disabled = true; btn.textContent = 'Проверка...';
   errorEl.textContent = '';
 
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code.toUpperCase(), name, device_id: getDeviceId() })
+      body: JSON.stringify({ code: code.toUpperCase(), device_id: getDeviceId() })
     });
     const data = await res.json();
     if (!res.ok) { errorEl.textContent = data.error || 'Ошибка входа'; return; }
@@ -1339,6 +1394,33 @@ async function handleLogin(e) {
     errorEl.textContent = 'Ошибка сети. Попробуйте ещё раз.';
   } finally {
     btn.disabled = false; btn.textContent = 'Войти';
+  }
+}
+
+async function handleAdminLogin(e) {
+  e.preventDefault();
+  const password = document.getElementById('adminPasswordInput').value.trim();
+  const errorEl = document.getElementById('adminLoginError');
+  const btn = document.getElementById('adminLoginBtn');
+  if (!password) return;
+
+  btn.disabled = true; btn.textContent = 'Проверка...';
+  errorEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Ошибка входа'; return; }
+    localStorage.setItem('tt_admin_token', data.token);
+    window.location.href = '/admin';
+  } catch (e) {
+    errorEl.textContent = 'Ошибка сети. Попробуйте ещё раз.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Войти как администратор';
   }
 }
 
