@@ -93,9 +93,9 @@ export default async function handler(req, res) {
       body: { last_used_at: new Date().toISOString() }
     });
 
-    // 8. Create session (30 days)
+    // 8. Create session (72 hours)
     const token = generateToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
     const sessionRes = await supabaseRequest('sessions', {
       method: 'POST',
       body: {
