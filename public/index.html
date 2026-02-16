@@ -1254,7 +1254,7 @@ body {
         </div>
         <div class="dialog-messages" id="dialogMessages">
           <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">
-            Нажмите на микрофон и произнесите фразу.<br>Перевод будет озвучен автоматически.
+            Нажмите на микрофон и произнесите фразу.<br>Для озвучки перевода нажмите на микрофон ещё раз.
           </div>
         </div>
         <div class="dialog-controls">
@@ -1736,7 +1736,7 @@ function updateLangs() {
   currentDialogSessionId = null;
   const dialogContainer = document.getElementById('dialogMessages');
   if (dialogContainer) {
-    dialogContainer.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Нажмите на микрофон и произнесите фразу.<br>Перевод будет озвучен автоматически.</div>';
+    dialogContainer.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Нажмите на микрофон и произнесите фразу.<br>Для озвучки перевода нажмите на микрофон ещё раз.</div>';
   }
   // Clear voice mode results
   const voiceTranscript = document.getElementById('voiceTranscript');
@@ -1761,7 +1761,7 @@ function updateDialogLangIndicator() {
   if (!el) return;
   const lang = LANGS[dialogNextLang];
   if (!lang) return;
-  el.innerHTML = flagImg(lang.flagCode, 16) + ' ' + lang.name;
+  el.innerHTML = flagImg(lang.flagCode, 16);
 }
 
 function flipDialogLang() {
@@ -2172,7 +2172,7 @@ function addDialogMessage(text, langCode, autoPlay, detectedGender) {
     : '';
 
   bubble.innerHTML =
-    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + ' ' + lang.name + genderBadge + '</div>' +
+    '<div class="msg-label">' + flagImg(lang.flagCode, 16) + genderBadge + '</div>' +
     '<div class="msg-text">' + text + '</div>' +
     '<button class="msg-play" onclick="speakText(\'' + escapedText + '\', \'' + lang.tts + '\', this, \'' + genderForTts + '\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
