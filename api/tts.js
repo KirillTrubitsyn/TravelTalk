@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const langMap = {
     'ru-RU': 'ru', 'en-US': 'en', 'de-DE': 'de',
     'fr-FR': 'fr', 'pt-BR': 'pt', 'it-IT': 'it',
-    'es-ES': 'es'
+    'es-ES': 'es', 'el-GR': 'el'
   };
   const languageCode = langMap[lang] || lang?.slice(0, 2) || 'en';
 
