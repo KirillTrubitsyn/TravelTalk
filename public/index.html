@@ -3209,6 +3209,35 @@ function openPronunciationTrainer(btn) {
   document.getElementById('pronunciationOverlay').classList.add('visible');
 }
 
+function openPronunciationTrainerDirect(text, lang) {
+  if (!text) { showToast('Нет текста для тренировки'); return; }
+
+  pronunciationTargetText = text;
+  pronunciationTargetLang = lang;
+  pronunciationSpokenText = '';
+  pronunciationConfidence = 0;
+  pronunciationTtsBuffer = null;
+  pronunciationPlaybackRate = 1.0;
+  cleanupPronunciationAudio();
+  stopPronunciationSpeedPlayback();
+
+  document.getElementById('pronunciationPhrase').textContent = pronunciationTargetText;
+  document.getElementById('pronunciationHint').textContent = 'Послушайте фразу и попробуйте повторить';
+  document.getElementById('pronunciationStatus').textContent = 'Нажмите микрофон и повторите фразу';
+  document.getElementById('pronunciationStatus').classList.remove('active');
+  document.getElementById('pronunciationResult').classList.remove('visible');
+  document.getElementById('pronunciationScoreContainer').innerHTML = '';
+  document.getElementById('pronunciationWords').innerHTML = '';
+  document.getElementById('pronunciationActions').innerHTML = '';
+  document.getElementById('pronunciationPlayback').innerHTML = '';
+  document.getElementById('pronunciationTips').innerHTML = '';
+  document.getElementById('pronunciationTips').classList.remove('visible');
+  document.getElementById('pronunciationMic').classList.remove('recording');
+  document.getElementById('pronunciationCountdown').style.display = 'none';
+  updateSpeedButtons();
+  document.getElementById('pronunciationOverlay').classList.add('visible');
+}
+
 function cleanupPronunciationAudio() {
   if (pronunciationAudioUrl) {
     URL.revokeObjectURL(pronunciationAudioUrl);
@@ -4737,6 +4766,9 @@ function renderPhrasebookPhrases() {
         '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
         '</button>' +
+        '<button class="icon-btn" onclick="openPronunciationTrainerDirect(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\')" title="Тренировать произношение">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M1 1l4 4M23 1l-4 4"/></svg>' +
+        '</button>' +
         '<button class="pb-item-delete" onclick="deleteCustomPhrase(\'' + phraseId + '\')" title="Удалить">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
         '</button>' +
@@ -4769,6 +4801,9 @@ function renderPhrasebookPhrases() {
         '</button>' +
         '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать перевод">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="openPronunciationTrainerDirect(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\')" title="Тренировать произношение">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M1 1l4 4M23 1l-4 4"/></svg>' +
         '</button>' +
       '</div>';
 
@@ -4906,6 +4941,9 @@ function renderCustomPhrases() {
         '</button>' +
         '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="openPronunciationTrainerDirect(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\')" title="Тренировать произношение">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M1 1l4 4M23 1l-4 4"/></svg>' +
         '</button>' +
         '<button class="pb-item-delete" onclick="deleteCustomPhrase(\'' + phraseId + '\')" title="Удалить">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
