@@ -1030,6 +1030,19 @@ body {
 /* Phrasebook button in header */
 .phrasebook-header-btn { border:none;background:none;cursor:pointer;color:var(--muted);padding:8px;border-radius:var(--r12);min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;transition:all 0.2s; }
 .phrasebook-header-btn:hover { background:var(--surfaceAlt);color:var(--text); }
+
+/* Phrasebook lang bar */
+.phrasebook-lang-bar { display:flex;align-items:center;margin:12px 0 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r20);padding:8px;box-shadow:var(--shadowMd);position:relative; }
+.phrasebook-lang-bar::before { content:'';position:absolute;top:20%;bottom:20%;left:50%;width:0;border-left:2px dotted rgba(31,41,55,0.10);pointer-events:none;z-index:0; }
+.pb-lang-wrap { flex:1;position:relative;display:flex;align-items:center;justify-content:center; }
+.pb-lang-flag { display:flex;align-items:center;padding:10px 6px 10px 10px;pointer-events:none;flex-shrink:0;line-height:0; }
+.pb-lang-label { pointer-events:none;font-family:var(--font);font-size:13px;font-weight:500;white-space:nowrap; }
+.pb-lang-wrap.source .pb-lang-label { color:var(--terracotta); }
+.pb-lang-wrap.target .pb-lang-label { color:var(--sea); }
+.pb-lang-select { position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;background:transparent; }
+.pb-lang-select option { background:var(--surface);color:var(--text); }
+.pb-lang-swap { width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--surfaceAlt);color:var(--sea);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.3s;z-index:1; }
+.pb-lang-swap:hover { color:var(--terracotta);border-color:var(--terracotta);transform:rotate(180deg); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
@@ -1383,6 +1396,39 @@ body {
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <div class="phrasebook-topbar-title">Разговорник</div>
+    </div>
+    <div class="phrasebook-lang-bar">
+      <div class="pb-lang-wrap source">
+        <span class="pb-lang-flag" id="pbLangFromFlag"></span>
+        <span class="pb-lang-label" id="pbLangFromLabel"></span>
+        <select class="pb-lang-select" id="pbLangFrom" onchange="updatePhrasebookLangs()">
+          <option value="ru">Русский</option>
+          <option value="pt-BR">Português</option>
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="el">Ελληνικά</option>
+        </select>
+      </div>
+      <button class="pb-lang-swap" onclick="swapPhrasebookLangs()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+      <div class="pb-lang-wrap target">
+        <span class="pb-lang-flag" id="pbLangToFlag"></span>
+        <span class="pb-lang-label" id="pbLangToLabel"></span>
+        <select class="pb-lang-select" id="pbLangTo" onchange="updatePhrasebookLangs()">
+          <option value="en">English</option>
+          <option value="pt-BR">Português</option>
+          <option value="ru">Русский</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="el">Ελληνικά</option>
+        </select>
+      </div>
     </div>
     <div class="phrasebook-categories" id="phrasebookCategories"></div>
     <div class="phrasebook-list" id="phrasebookList"></div>
@@ -3267,6 +3313,20 @@ const PHRASEBOOK = {
 };
 
 let currentPhrasebookCategory = 'greetings';
+let pbSourceLang = 'ru';
+let pbTargetLang = 'en';
+
+// Category names in all supported languages
+const PB_CATEGORY_NAMES = {
+  greetings:  { ru: 'Приветствия', en: 'Greetings', de: 'Begrüßung', fr: 'Salutations', it: 'Saluti', es: 'Saludos', 'pt-BR': 'Saudações', el: 'Χαιρετισμοί' },
+  restaurant: { ru: 'Ресторан', en: 'Restaurant', de: 'Restaurant', fr: 'Restaurant', it: 'Ristorante', es: 'Restaurante', 'pt-BR': 'Restaurante', el: 'Εστιατόριο' },
+  hotel:      { ru: 'Отель', en: 'Hotel', de: 'Hotel', fr: 'Hôtel', it: 'Hotel', es: 'Hotel', 'pt-BR': 'Hotel', el: 'Ξενοδοχείο' },
+  transport:  { ru: 'Транспорт', en: 'Transport', de: 'Transport', fr: 'Transport', it: 'Trasporto', es: 'Transporte', 'pt-BR': 'Transporte', el: 'Μεταφορά' },
+  shopping:   { ru: 'Магазин', en: 'Shopping', de: 'Einkaufen', fr: 'Shopping', it: 'Shopping', es: 'Compras', 'pt-BR': 'Compras', el: 'Αγορές' },
+  emergency:  { ru: 'Экстренные', en: 'Emergency', de: 'Notfall', fr: 'Urgence', it: 'Emergenza', es: 'Emergencia', 'pt-BR': 'Emergência', el: 'Έκτακτη ανάγκη' },
+  navigation: { ru: 'Навигация', en: 'Navigation', de: 'Navigation', fr: 'Navigation', it: 'Navigazione', es: 'Navegación', 'pt-BR': 'Navegação', el: 'Πλοήγηση' },
+  numbers:    { ru: 'Числа и время', en: 'Numbers & Time', de: 'Zahlen & Zeit', fr: 'Nombres & Heure', it: 'Numeri & Ora', es: 'Números y Hora', 'pt-BR': 'Números e Hora', el: 'Αριθμοί & Ώρα' }
+};
 
 function togglePhrasebook() {
   const main = document.getElementById('mainView');
@@ -3277,12 +3337,51 @@ function togglePhrasebook() {
     pb.classList.remove('visible');
     main.style.display = '';
   } else {
+    // Sync phrasebook langs with main lang bar on open
+    pbSourceLang = sourceLang;
+    pbTargetLang = targetLang;
+    document.getElementById('pbLangFrom').value = pbSourceLang;
+    document.getElementById('pbLangTo').value = pbTargetLang;
+
     main.style.display = 'none';
     hist.classList.remove('visible');
     pb.classList.add('visible');
+    updatePhrasebookLangUI();
     renderPhrasebookCategories();
     renderPhrasebookPhrases();
   }
+}
+
+function updatePhrasebookLangs() {
+  pbSourceLang = document.getElementById('pbLangFrom').value;
+  pbTargetLang = document.getElementById('pbLangTo').value;
+  if (pbSourceLang === pbTargetLang) {
+    const keys = Object.keys(LANGS);
+    const alt = keys.find(k => k !== pbSourceLang);
+    pbTargetLang = alt;
+    document.getElementById('pbLangTo').value = alt;
+  }
+  updatePhrasebookLangUI();
+  renderPhrasebookCategories();
+  renderPhrasebookPhrases();
+}
+
+function swapPhrasebookLangs() {
+  const tmp = pbSourceLang;
+  pbSourceLang = pbTargetLang;
+  pbTargetLang = tmp;
+  document.getElementById('pbLangFrom').value = pbSourceLang;
+  document.getElementById('pbLangTo').value = pbTargetLang;
+  updatePhrasebookLangUI();
+  renderPhrasebookCategories();
+  renderPhrasebookPhrases();
+}
+
+function updatePhrasebookLangUI() {
+  document.getElementById('pbLangFromFlag').innerHTML = flagImg(LANGS[pbSourceLang].flagCode);
+  document.getElementById('pbLangToFlag').innerHTML = flagImg(LANGS[pbTargetLang].flagCode);
+  document.getElementById('pbLangFromLabel').textContent = LANGS[pbSourceLang].name;
+  document.getElementById('pbLangToLabel').textContent = LANGS[pbTargetLang].name;
 }
 
 function renderPhrasebookCategories() {
@@ -3291,7 +3390,9 @@ function renderPhrasebookCategories() {
   for (const [key, cat] of Object.entries(PHRASEBOOK)) {
     const btn = document.createElement('button');
     btn.className = 'phrasebook-cat-btn' + (key === currentPhrasebookCategory ? ' active' : '');
-    btn.textContent = cat.icon + ' ' + (cat.name.ru || cat.name.en);
+    const catNames = PB_CATEGORY_NAMES[key] || cat.name;
+    const catLabel = catNames[pbSourceLang] || catNames.ru || catNames.en;
+    btn.textContent = cat.icon + ' ' + catLabel;
     btn.onclick = () => {
       currentPhrasebookCategory = key;
       renderPhrasebookCategories();
@@ -3307,31 +3408,33 @@ function renderPhrasebookPhrases() {
   const cat = PHRASEBOOK[currentPhrasebookCategory];
   if (!cat) return;
 
-  const src = sourceLang;
-  const tgt = targetLang;
-  // Map lang codes: pt-BR stays as is, others need mapping
-  const srcKey = src;
-  const tgtKey = tgt;
+  const src = pbSourceLang;
+  const tgt = pbTargetLang;
 
   cat.phrases.forEach(phrase => {
-    const srcText = phrase[srcKey] || phrase.en || '';
-    const tgtText = phrase[tgtKey] || phrase.en || '';
+    const srcText = phrase[src] || phrase.en || '';
+    const tgtText = phrase[tgt] || phrase.en || '';
     if (!srcText || !tgtText) return;
 
     const item = document.createElement('div');
     item.className = 'phrasebook-item';
 
     const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
     const tgtTtsLang = LANGS[tgt] ? LANGS[tgt].tts : 'en-US';
+    const srcTtsLang = LANGS[src] ? LANGS[src].tts : 'ru-RU';
 
     item.innerHTML =
       '<div class="phrasebook-item-source">' + escapeHtml(srcText) + '</div>' +
       '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
       '<div class="phrasebook-item-actions">' +
-        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить">' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedSrc + '\', \'' + srcTtsLang + '\', this)" title="Озвучить оригинал" style="color:var(--terracotta)">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить перевод">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
         '</button>' +
-        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать">' +
+        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать перевод">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
         '</button>' +
       '</div>';
