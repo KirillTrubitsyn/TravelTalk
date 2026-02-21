@@ -1089,6 +1089,32 @@ body {
 .pb-lang-select option { background:var(--surface);color:var(--text); }
 .pb-lang-swap { width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--surfaceAlt);color:var(--sea);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.3s;z-index:1; }
 .pb-lang-swap:hover { color:var(--terracotta);border-color:var(--terracotta);transform:rotate(180deg); }
+
+/* Custom phrases section */
+.pb-custom-section { padding:0 0 12px; }
+.pb-custom-header { display:flex;align-items:center;justify-content:space-between;padding:8px 0; }
+.pb-custom-title { font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px; }
+.pb-custom-count { font-size:11px;color:var(--muted);background:var(--surfaceAlt);padding:2px 8px;border-radius:8px;font-variant-numeric:tabular-nums; }
+
+.pb-add-btn { display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r12);border:1px dashed var(--border);background:var(--surface);color:var(--sea);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;width:100%; }
+.pb-add-btn:hover { border-color:var(--sea);background:var(--seaSoft); }
+.pb-add-btn svg { width:16px;height:16px;flex-shrink:0; }
+
+/* Add phrase form */
+.pb-add-form { display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);padding:16px;margin-bottom:8px;box-shadow:var(--shadowMd);animation:slideUp 0.2s ease; }
+.pb-add-form.visible { display:flex;flex-direction:column;gap:12px; }
+.pb-add-form-title { font-size:14px;font-weight:600;color:var(--text); }
+.pb-add-input { width:100%;padding:10px 14px;border-radius:var(--r12);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color 0.2s,box-shadow 0.2s; }
+.pb-add-input:focus { border-color:rgba(242,106,61,0.25);box-shadow:0 0 0 3px var(--focus); }
+.pb-add-input::placeholder { color:var(--muted); }
+.pb-add-form-actions { display:flex;gap:8px; }
+.pb-add-form-actions .btn { min-height:40px; }
+
+/* Custom phrase item delete button */
+.pb-item-delete { width:36px;height:36px;border-radius:var(--r12);border:1px solid var(--border);background:var(--surface);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s; }
+.pb-item-delete:hover { color:var(--danger);border-color:var(--danger);background:rgba(239,68,68,0.06); }
+.pb-item-delete svg { width:14px;height:14px; }
+.pb-custom-badge { font-size:10px;color:var(--terracotta);background:rgba(242,106,61,0.1);padding:1px 6px;border-radius:6px;font-weight:600; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
@@ -1485,6 +1511,31 @@ body {
       </div>
     </div>
     <div class="phrasebook-categories" id="phrasebookCategories"></div>
+
+    <!-- Add phrase form (hidden by default) -->
+    <div class="pb-add-form" id="pbAddForm">
+      <div class="pb-add-form-title">Новая фраза</div>
+      <input class="pb-add-input" id="pbAddSource" placeholder="Фраза на исходном языке">
+      <input class="pb-add-input" id="pbAddTarget" placeholder="Перевод">
+      <div class="pb-add-form-actions">
+        <button class="btn btn-primary" onclick="saveCustomPhrase()" style="flex:1">Сохранить</button>
+        <button class="btn btn-ghost" onclick="hideAddPhraseForm()" style="flex:none;padding:8px 16px">Отмена</button>
+      </div>
+    </div>
+
+    <!-- Custom phrases section -->
+    <div class="pb-custom-section" id="pbCustomSection" style="display:none">
+      <div class="pb-custom-header">
+        <div class="pb-custom-title">Мои фразы <span class="pb-custom-count" id="pbCustomCount">0</span></div>
+      </div>
+      <div id="pbCustomList"></div>
+    </div>
+
+    <button class="pb-add-btn" id="pbAddBtn" onclick="showAddPhraseForm()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Добавить свою фразу
+    </button>
+
     <div class="phrasebook-list" id="phrasebookList"></div>
   </div>
 
@@ -3197,7 +3248,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ===== INDEXEDDB — OFFLINE CACHE =====
 const DB_NAME = 'traveltalk_offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let offlineDb = null;
 
 function openOfflineDB() {
@@ -3211,10 +3262,35 @@ function openOfflineDB() {
         store.createIndex('lookup', ['source_lang', 'target_lang', 'source_text'], { unique: false });
         store.createIndex('by_date', 'created_at', { unique: false });
       }
+      if (!db.objectStoreNames.contains('custom_phrases')) {
+        db.createObjectStore('custom_phrases', { keyPath: 'key' });
+      }
     };
     req.onsuccess = (e) => { offlineDb = e.target.result; resolve(offlineDb); };
     req.onerror = () => reject(req.error);
   });
+}
+
+async function saveCustomPhrasesToDB(phrases) {
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction('custom_phrases', 'readwrite');
+    const store = tx.objectStore('custom_phrases');
+    store.put({ key: 'phrases', data: phrases });
+  } catch (e) { console.warn('[Offline] Custom phrases write error:', e); }
+}
+
+async function getCustomPhrasesFromDB() {
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction('custom_phrases', 'readonly');
+    const store = tx.objectStore('custom_phrases');
+    return new Promise((resolve) => {
+      const req = store.get('phrases');
+      req.onsuccess = () => resolve(req.result ? req.result.data : []);
+      req.onerror = () => resolve([]);
+    });
+  } catch (e) { return []; }
 }
 
 async function cacheTranslation(srcLang, tgtLang, sourceText, translatedText, mode) {
@@ -3432,6 +3508,7 @@ function togglePhrasebook() {
   if (isOpen) {
     pb.classList.remove('visible');
     main.style.display = '';
+    hideAddPhraseForm();
   } else {
     // Sync phrasebook langs with main lang bar on open
     pbSourceLang = sourceLang;
@@ -3445,6 +3522,8 @@ function togglePhrasebook() {
     updatePhrasebookLangUI();
     renderPhrasebookCategories();
     renderPhrasebookPhrases();
+    if (!customPhrasesLoaded) loadCustomPhrases();
+    else renderCustomPhrases();
   }
 }
 
@@ -3460,6 +3539,8 @@ function updatePhrasebookLangs() {
   updatePhrasebookLangUI();
   renderPhrasebookCategories();
   renderPhrasebookPhrases();
+  renderCustomPhrases();
+  hideAddPhraseForm();
 }
 
 function swapPhrasebookLangs() {
@@ -3471,6 +3552,7 @@ function swapPhrasebookLangs() {
   updatePhrasebookLangUI();
   renderPhrasebookCategories();
   renderPhrasebookPhrases();
+  renderCustomPhrases();
 }
 
 function updatePhrasebookLangUI() {
@@ -3583,6 +3665,185 @@ function copyPhrase(text) {
   navigator.clipboard.writeText(text).then(() => showToast('Скопировано')).catch(() => {});
 }
 
+// ===== CUSTOM PHRASES =====
+let customPhrases = [];
+let customPhrasesLoaded = false;
+
+async function loadCustomPhrases() {
+  // Load from IndexedDB first (instant, works offline)
+  customPhrases = await getCustomPhrasesFromDB();
+  renderCustomPhrases();
+
+  // Then sync from server if online
+  if (!isOffline && authToken) {
+    try {
+      const res = await fetch('/api/phrasebook/list', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        customPhrases = data.phrases || [];
+        await saveCustomPhrasesToDB(customPhrases);
+        renderCustomPhrases();
+      }
+    } catch (e) { /* offline or error — use cached */ }
+  }
+  customPhrasesLoaded = true;
+}
+
+function renderCustomPhrases() {
+  const section = document.getElementById('pbCustomSection');
+  const list = document.getElementById('pbCustomList');
+  const countEl = document.getElementById('pbCustomCount');
+
+  // Filter phrases that match current phrasebook language pair (in either direction)
+  const filtered = customPhrases.filter(p =>
+    (p.source_lang === pbSourceLang && p.target_lang === pbTargetLang) ||
+    (p.source_lang === pbTargetLang && p.target_lang === pbSourceLang)
+  );
+
+  countEl.textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    section.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  section.style.display = 'block';
+  list.innerHTML = '';
+
+  filtered.forEach(phrase => {
+    // Show in correct direction — if stored reversed, flip display
+    let srcText, tgtText;
+    if (phrase.source_lang === pbSourceLang) {
+      srcText = phrase.source_text;
+      tgtText = phrase.target_text;
+    } else {
+      srcText = phrase.target_text;
+      tgtText = phrase.source_text;
+    }
+
+    const item = document.createElement('div');
+    item.className = 'phrasebook-item';
+
+    const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const tgtTtsLang = LANGS[pbTargetLang] ? LANGS[pbTargetLang].tts : 'en-US';
+    const srcTtsLang = LANGS[pbSourceLang] ? LANGS[pbSourceLang].tts : 'ru-RU';
+    const phraseId = (phrase.id || '').replace(/'/g, '');
+
+    item.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+        '<div style="flex:1">' +
+          '<div class="phrasebook-item-source">' + escapeHtml(srcText) + ' <span class="pb-custom-badge">моя</span></div>' +
+          '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="phrasebook-item-actions">' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedSrc + '\', \'' + srcTtsLang + '\', this)" title="Озвучить оригинал" style="color:var(--terracotta)">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить перевод">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+        '<button class="pb-item-delete" onclick="deleteCustomPhrase(\'' + phraseId + '\')" title="Удалить">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+        '</button>' +
+      '</div>';
+
+    list.appendChild(item);
+  });
+}
+
+function showAddPhraseForm() {
+  const form = document.getElementById('pbAddForm');
+  const srcInput = document.getElementById('pbAddSource');
+  const tgtInput = document.getElementById('pbAddTarget');
+  form.classList.add('visible');
+  document.getElementById('pbAddBtn').style.display = 'none';
+
+  // Update placeholders with current language names
+  srcInput.placeholder = LANGS[pbSourceLang] ? LANGS[pbSourceLang].name : 'Оригинал';
+  tgtInput.placeholder = LANGS[pbTargetLang] ? LANGS[pbTargetLang].name : 'Перевод';
+  srcInput.value = '';
+  tgtInput.value = '';
+  srcInput.focus();
+}
+
+function hideAddPhraseForm() {
+  document.getElementById('pbAddForm').classList.remove('visible');
+  document.getElementById('pbAddBtn').style.display = '';
+}
+
+async function saveCustomPhrase() {
+  const srcText = document.getElementById('pbAddSource').value.trim();
+  const tgtText = document.getElementById('pbAddTarget').value.trim();
+
+  if (!srcText || !tgtText) {
+    showToast('Заполните оба поля');
+    return;
+  }
+
+  const phrase = {
+    category: 'custom',
+    source_lang: pbSourceLang,
+    target_lang: pbTargetLang,
+    source_text: srcText,
+    target_text: tgtText,
+    created_at: new Date().toISOString()
+  };
+
+  // Save to server if online
+  if (!isOffline && authToken) {
+    try {
+      const res = await fetch('/api/phrasebook/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(phrase)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.phrase) {
+          phrase.id = data.phrase.id;
+        }
+      }
+    } catch (e) { /* save locally anyway */ }
+  }
+
+  // Generate local ID if server didn't provide one
+  if (!phrase.id) {
+    phrase.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  }
+
+  customPhrases.unshift(phrase);
+  await saveCustomPhrasesToDB(customPhrases);
+  renderCustomPhrases();
+  hideAddPhraseForm();
+  showToast('Фраза сохранена');
+}
+
+async function deleteCustomPhrase(id) {
+  if (!id) return;
+
+  // Delete from server if online and it's a server-side phrase
+  if (!isOffline && authToken && !id.startsWith('local_')) {
+    try {
+      await fetch('/api/phrasebook/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ id })
+      });
+    } catch (e) { /* delete locally anyway */ }
+  }
+
+  customPhrases = customPhrases.filter(p => p.id !== id);
+  await saveCustomPhrasesToDB(customPhrases);
+  renderCustomPhrases();
+  showToast('Фраза удалена');
+}
+
 // ===== OFFLINE-AWARE TRANSLATION =====
 // Patch translateText to check local cache when offline
 const _origTranslateText = translateText;
@@ -3632,11 +3893,25 @@ translateText = async function() {
 
 function findInPhrasebook(text, srcLang, tgtLang) {
   const needle = text.trim().toLowerCase().replace(/[.!?;,]$/, '');
+  // Search built-in phrasebook
   for (const cat of Object.values(PHRASEBOOK)) {
     for (const phrase of cat.phrases) {
       const src = (phrase[srcLang] || '').toLowerCase().replace(/[.!?;,]$/, '');
       if (src && src === needle) {
         return phrase[tgtLang] || null;
+      }
+    }
+  }
+  // Search custom phrases
+  for (const phrase of customPhrases) {
+    if (phrase.source_lang === srcLang && phrase.target_lang === tgtLang) {
+      if (phrase.source_text.trim().toLowerCase().replace(/[.!?;,]$/, '') === needle) {
+        return phrase.target_text;
+      }
+    }
+    if (phrase.source_lang === tgtLang && phrase.target_lang === srcLang) {
+      if (phrase.target_text.trim().toLowerCase().replace(/[.!?;,]$/, '') === needle) {
+        return phrase.source_text;
       }
     }
   }
