@@ -3699,36 +3699,7 @@ function renderPhrasebookPhrases() {
   const tgtTtsLang = LANGS[tgt] ? LANGS[tgt].tts : 'en-US';
   const srcTtsLang = LANGS[src] ? LANGS[src].tts : 'ru-RU';
 
-  cat.phrases.forEach(phrase => {
-    const srcText = phrase[src] || phrase.en || '';
-    const tgtText = phrase[tgt] || phrase.en || '';
-    if (!srcText || !tgtText) return;
-
-    const item = document.createElement('div');
-    item.className = 'phrasebook-item';
-
-    const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
-    const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
-
-    item.innerHTML =
-      '<div class="phrasebook-item-source">' + escapeHtml(srcText) + '</div>' +
-      '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
-      '<div class="phrasebook-item-actions">' +
-        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedSrc + '\', \'' + srcTtsLang + '\', this)" title="Озвучить оригинал" style="color:var(--terracotta)">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>' +
-        '</button>' +
-        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить перевод">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
-        '</button>' +
-        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать перевод">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
-        '</button>' +
-      '</div>';
-
-    container.appendChild(item);
-  });
-
-  // Also render custom phrases assigned to this specific category
+  // First: render custom phrases assigned to this category (at the top)
   const catCustom = customPhrases.filter(p =>
     p.category === currentPhrasebookCategory &&
     ((p.source_lang === src && p.target_lang === tgt) ||
@@ -3770,6 +3741,37 @@ function renderPhrasebookPhrases() {
 
     container.appendChild(item);
   });
+
+  // Then: render built-in phrases
+  cat.phrases.forEach(phrase => {
+    const srcText = phrase[src] || phrase.en || '';
+    const tgtText = phrase[tgt] || phrase.en || '';
+    if (!srcText || !tgtText) return;
+
+    const item = document.createElement('div');
+    item.className = 'phrasebook-item';
+
+    const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+
+    item.innerHTML =
+      '<div class="phrasebook-item-source">' + escapeHtml(srcText) + '</div>' +
+      '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
+      '<div class="phrasebook-item-actions">' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedSrc + '\', \'' + srcTtsLang + '\', this)" title="Озвучить оригинал" style="color:var(--terracotta)">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить перевод">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать перевод">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+      '</div>';
+
+    container.appendChild(item);
+  });
+
 }
 
 function speakPhrase(text, lang, btn) {
