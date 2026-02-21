@@ -3477,10 +3477,22 @@ async function togglePronunciationRecording() {
 
   // Shared function for when recording finishes
   const finishRecording = () => {
+    // Guard against double execution (onerror + onend both call this)
+    if (!pronunciationRecording) return;
+
     pronunciationFinishFn = null;
     pronunciationRecording = false;
     mic.classList.remove('recording');
     status.classList.remove('active');
+
+    // Stop Google SpeechRecognition immediately to prevent further events
+    if (pronunciationRecognition) {
+      pronunciationRecognition.onresult = null;
+      pronunciationRecognition.onend = null;
+      pronunciationRecognition.onerror = null;
+      try { pronunciationRecognition.abort(); } catch(e) {}
+      pronunciationRecognition = null;
+    }
 
     // Stop MediaRecorder
     if (pronunciationMediaRecorder && pronunciationMediaRecorder.state === 'recording') {
