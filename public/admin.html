@@ -104,6 +104,12 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .code-status.active { background:var(--seaSoft); color:var(--sea); }
 .code-status.inactive { background:#fef2f2; color:var(--danger); }
 .code-users { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.code-users-toggle { display:flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer; font-family:var(--font); font-size:12px; color:var(--muted); font-weight:500; padding:0; }
+.code-users-toggle:hover { color:var(--text); }
+.code-users-toggle svg { transition:transform 0.2s; }
+.code-users-toggle.open svg { transform:rotate(90deg); }
+.code-users-list { overflow:hidden; max-height:0; transition:max-height 0.3s ease; }
+.code-users-list.open { max-height:500px; }
 .code-user { font-size:12px; color:var(--muted); padding:5px 0; display:flex; justify-content:space-between; align-items:center; }
 .code-user-name { font-weight:500; color:var(--text); }
 .code-user-device { font-family:monospace; font-size:11px; }
@@ -450,7 +456,13 @@ function renderCodes() {
         <span>Создан: ${created}</span>
         <span>Посл. вход: ${lastUsed}</span>
       </div>
-      <div class="code-users">${usersHtml}</div>
+      <div class="code-users">
+        <button class="code-users-toggle" onclick="toggleDevices('${c.id}')">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          Устройства (${users.length})
+        </button>
+        <div class="code-users-list" id="devices-${c.id}">${usersHtml}</div>
+      </div>
       <div class="code-actions">
         <button class="btn btn-sm btn-sea" onclick="copyCode('${esc(c.code)}')" title="Скопировать код">Копировать</button>
         <button class="btn btn-sm" onclick="editCode('${c.id}')">Редактировать</button>
@@ -475,6 +487,13 @@ function renderCodes() {
       </div>`;
     list.appendChild(card);
   });
+}
+
+function toggleDevices(id) {
+  const list = document.getElementById('devices-' + id);
+  const btn = list.previousElementSibling;
+  list.classList.toggle('open');
+  btn.classList.toggle('open');
 }
 
 function editCode(id) {
