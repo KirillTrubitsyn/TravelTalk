@@ -3365,38 +3365,40 @@ function getPronunciationLangName() {
 async function evaluatePronunciation(target, spoken, confidence) {
   const langName = getPronunciationLangName();
 
-  const systemPrompt = 'You are a very strict ' + langName + ' pronunciation examiner at a language school. ' +
+  const systemPrompt = 'You are a strict ' + langName + ' pronunciation examiner at a language school. ' +
     'A Russian-speaking student attempted to pronounce a ' + langName + ' phrase. Their speech was processed by speech-to-text (STT).\n\n' +
-    '=== HOW STT WORKS (crucial context) ===\n' +
-    'Speech-to-text AUTO-CORRECTS pronunciation! A student can say "хэлоу" with terrible accent and STT will still output "hello". ' +
-    'Therefore: MATCHING TEXT ≠ GOOD PRONUNCIATION. The STT confidence score (0.0-1.0) is the only objective signal of pronunciation quality.\n\n' +
-    '=== SCORING METHOD: START AT 60, ADJUST ===\n' +
-    'Base score = 60 (average pronunciation with noticeable accent). Then adjust:\n\n' +
-    'BONUSES (add points):\n' +
-    '+ Confidence > 0.92: +15 (clear, confident speech)\n' +
-    '+ Confidence 0.85-0.92: +8 (decent clarity)\n' +
-    '+ All words recognized correctly: +10\n' +
-    '+ Maximum possible score: 85. Score 86-100 is IMPOSSIBLE — we cannot verify native-level pronunciation from STT alone.\n\n' +
-    'PENALTIES (subtract points):\n' +
+    '=== IMPORTANT: WHAT YOU RECEIVE ===\n' +
+    'You receive ONLY the STT-recognized text and a confidence score. You do NOT hear the actual audio.\n' +
+    'STT systems AUTO-CORRECT pronunciation — even terrible pronunciation often produces correct text.\n' +
+    'Therefore: MATCHING TEXT ≠ GOOD PRONUNCIATION.\n' +
+    'The confidence score (0.0-1.0) is the only objective measurement of how clearly the student spoke.\n\n' +
+    '=== SCORING METHOD ===\n' +
+    'Start with base score 55. Then apply adjustments:\n\n' +
+    'BONUSES:\n' +
+    '+ All words recognized correctly: +15\n' +
+    '+ Confidence > 0.93: +20 (very clear speech)\n' +
+    '+ Confidence 0.86-0.93: +12\n' +
+    '+ Confidence 0.78-0.85: +5\n\n' +
+    'PENALTIES:\n' +
     '— Each missing word: −12\n' +
     '— Each wrong/substituted word: −10\n' +
-    '— Each extra word not in target: −6\n' +
-    '— Confidence < 0.80: −10 (poor clarity)\n' +
-    '— Confidence < 0.65: −20 (very poor)\n' +
-    '— PRONUNCIATION QUALITY PENALTY (always apply for Russian speakers):\n' +
-    '  For EACH word in the phrase, assess the likely pronunciation difficulty for a Russian speaker.\n' +
-    '  Common ' + langName + ' problems for Russians: wrong vowel sounds, incorrect stress placement, ' +
-    'consonant substitutions (th→z/s, w→v, h→g, r→hard r), wrong intonation patterns, vowel reduction.\n' +
-    '  Mark words as "ok":false if a Russian speaker would LIKELY mispronounce them, even if STT recognized them.\n' +
-    '  For each likely-mispronounced word: −3 points.\n\n' +
-    '=== FINAL SCORE INTERPRETATION ===\n' +
-    '75-85: Good — understandable, light accent (maximum achievable)\n' +
+    '— Each extra word: −6\n' +
+    '— Confidence < 0.70: −15\n' +
+    '— Confidence < 0.55: −25\n\n' +
+    'PRONUNCIATION QUALITY (always apply):\n' +
+    'For EACH word, evaluate how likely a Russian speaker would mispronounce it in ' + langName + '.\n' +
+    'Common problems: th→z/s/f, w→v, h→g/kh, æ→e, ŋ→ng, r→hard r, wrong stress, flat intonation.\n' +
+    'For difficult words (likely mispronounced): mark "ok":false and subtract −4 each.\n' +
+    'For medium-difficulty words: mark "ok":false and subtract −2 each.\n' +
+    'Only mark "ok":true for simple words with no tricky sounds for Russians (e.g. "no", "go", "my").\n\n' +
+    'SCORE SCALE:\n' +
+    '90-100: Excellent — near-native, no noticeable accent\n' +
+    '75-89: Good — clear with light accent\n' +
     '60-74: Fair — understandable but noticeable accent\n' +
-    '45-59: Below average — significant accent, some words unclear\n' +
-    '30-44: Poor — hard for natives to understand\n' +
-    '0-29: Very poor — barely understandable\n\n' +
+    '40-59: Needs work — significant accent\n' +
+    '0-39: Poor — hard to understand\n\n' +
     'Respond ONLY with valid JSON (no markdown, no backticks):\n' +
-    '{"score":<0-85 max>,"assessment":"<excellent|good|fair|poor>","words":[{"word":"<each target word>","ok":<true/false>,"tip":"<if ok=false: short tip in Russian on how to pronounce correctly, with IPA transcription. if ok=true: empty string>"}],"feedback":"<3-5 sentences in Russian: what specifically was wrong, how to fix it with phonetic examples, encouragement>"}';
+    '{"score":<0-100>,"assessment":"<excellent|good|fair|poor>","words":[{"word":"<target word>","ok":<true/false>,"tip":"<if wrong: tip in Russian + IPA transcription; if ok: empty string>"}],"feedback":"<3-5 sentences in Russian: specific errors, how to pronounce correctly, phonetic examples, encouragement>"}';
 
   const userContent = 'Target phrase: "' + target + '"\n' +
     'STT recognized: "' + spoken + '"\n' +
@@ -3457,10 +3459,10 @@ function renderAIResult(result) {
   const playbackEl = document.getElementById('pronunciationPlayback');
   const status = document.getElementById('pronunciationStatus');
 
-  const score = Math.max(0, Math.min(85, result.score || 0));
-  const color = score >= 70 ? '#10B981' : score >= 50 ? '#F59E0B' : '#ef4444';
+  const score = Math.max(0, Math.min(100, result.score || 0));
+  const color = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#ef4444';
   const labels = { excellent: 'Отлично!', good: 'Хорошо!', fair: 'Неплохо', poor: 'Нужно потренироваться' };
-  const label = labels[result.assessment] || (score >= 70 ? 'Хорошо!' : score >= 50 ? 'Неплохо' : 'Нужно потренироваться');
+  const label = labels[result.assessment] || (score >= 75 ? 'Хорошо!' : score >= 50 ? 'Неплохо' : 'Нужно потренироваться');
 
   // SVG ring
   const circumference = 2 * Math.PI * 30;
