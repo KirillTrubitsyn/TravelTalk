@@ -95,6 +95,21 @@ CREATE TABLE admin_tokens (
 CREATE INDEX idx_admin_tokens_token ON admin_tokens(token);
 CREATE INDEX idx_admin_tokens_expires_at ON admin_tokens(expires_at);
 
+-- ===== CUSTOM PHRASEBOOK =====
+CREATE TABLE custom_phrases (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  invite_code_id UUID NOT NULL REFERENCES invite_codes(id) ON DELETE CASCADE,
+  category TEXT NOT NULL DEFAULT 'custom',
+  source_lang TEXT NOT NULL,
+  target_lang TEXT NOT NULL,
+  source_text TEXT NOT NULL,
+  target_text TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_custom_phrases_invite_code ON custom_phrases(invite_code_id);
+CREATE INDEX idx_custom_phrases_created_at ON custom_phrases(created_at DESC);
+
 -- ===== ROW LEVEL SECURITY =====
 ALTER TABLE invite_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -103,6 +118,7 @@ ALTER TABLE translations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dialog_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dialog_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE custom_phrases ENABLE ROW LEVEL SECURITY;
 
 -- Service role has full access (bypasses RLS)
 -- No anon policies: all access goes through our API with service_role key
