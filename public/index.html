@@ -2400,6 +2400,7 @@ async function toggleVoiceRecording() {
   recognition = getSpeechRecognition();
   if (!recognition) return;
 
+  recognition.continuous = true;
   recognition.lang = LANGS[voiceNextLang].speech;
   voiceRecording = true;
   mic.classList.add('recording');
@@ -2443,7 +2444,6 @@ async function toggleVoiceRecording() {
         renderExamples(r.examples, 'voiceExamples', 'voiceExamplesList');
         prefetchTts(r.text, LANGS[toLang].tts);
         saveTranslation('voice', r.from, toLang, finalText.trim(), r.text);
-        flipVoiceLang();
       } catch (e) {
         if (e.name !== 'AbortError') { showToast('Ошибка: ' + e.message); }
       }
