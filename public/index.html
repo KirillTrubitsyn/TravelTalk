@@ -2407,6 +2407,9 @@ async function toggleVoiceRecording() {
   status.textContent = 'Говорите...';
   status.classList.add('active');
 
+  // Start pitch analysis for automatic gender detection (like dialog mode)
+  startPitchDetection();
+
   let finalText = '';
 
   recognition.onresult = (e) => {
@@ -2425,6 +2428,9 @@ async function toggleVoiceRecording() {
     status.textContent = 'Нажмите для записи';
     status.classList.remove('active');
 
+    // Determine speaker gender from pitch analysis
+    const detectedGender = stopPitchDetection();
+
     if (finalText.trim()) {
       currentAbortController = new AbortController();
       try {
@@ -2433,16 +2439,18 @@ async function toggleVoiceRecording() {
         const raw = await callTranslate(prompt, finalText.trim(), wantExamples ? 2048 : 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
         const toLang = getOtherLang(r.from);
+        const genderForTts = detectedGender || voiceGender;
         const voiceResultEl = document.getElementById('voiceResultText');
         voiceResultEl.textContent = r.text;
         voiceResultEl.dataset.lang = LANGS[toLang].tts;
         voiceResultEl.dataset.sourceLang = r.from;
         voiceResultEl.dataset.targetLang = toLang;
         voiceResultEl.dataset.sourceText = finalText.trim();
+        voiceResultEl.dataset.detectedGender = genderForTts;
         document.getElementById('voiceResult').classList.add('visible');
         document.getElementById('voiceSavePhraseBtn').classList.remove('saved');
         renderExamples(r.examples, 'voiceExamples', 'voiceExamplesList');
-        prefetchTts(r.text, LANGS[toLang].tts);
+        prefetchTts(r.text, LANGS[toLang].tts, genderForTts);
         saveTranslation('voice', r.from, toLang, finalText.trim(), r.text);
       } catch (e) {
         if (e.name !== 'AbortError') { showToast('Ошибка: ' + e.message); }
@@ -2454,6 +2462,7 @@ async function toggleVoiceRecording() {
   recognition.onerror = (e) => {
     voiceRecording = false;
     mic.classList.remove('recording');
+    stopPitchDetection(); // Clean up pitch analysis on error
     if (e.error === 'not-allowed') {
       status.textContent = 'Нет доступа к микрофону';
     } else {
@@ -3009,7 +3018,8 @@ function speakResult(elementId, btn) {
   const el = document.getElementById(elementId);
   const text = el.textContent;
   const lang = el.dataset.lang || LANGS[targetLang].tts;
-  speakText(text, lang, btn);
+  const genderOverride = el.dataset.detectedGender || null;
+  speakText(text, lang, btn, genderOverride);
 }
 
 if ('speechSynthesis' in window) {
