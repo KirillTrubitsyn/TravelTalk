@@ -983,6 +983,53 @@ body {
 .history-empty svg { margin-bottom:12px;color:var(--border); }
 .history-empty-text { font-size:15px;font-weight:500;margin-bottom:4px;color:var(--text); }
 .history-empty-sub { font-size:13px; }
+
+/* ===== OFFLINE BANNER ===== */
+.offline-banner {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, #F59E0B 0%, #F97316 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: var(--r12);
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(245,158,11,0.3);
+  animation: slideUp 0.3s ease;
+}
+.offline-banner.visible { display: flex; }
+.offline-banner svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ===== PHRASEBOOK ===== */
+.phrasebook-view { display:none;flex-direction:column;flex:1;min-height:0; }
+.phrasebook-view.visible { display:flex; }
+.phrasebook-topbar { display:flex;align-items:center;gap:12px;padding:0;min-height:56px;border-bottom:1px solid var(--border);flex-shrink:0; }
+.phrasebook-back { border:none;background:none;cursor:pointer;color:var(--text);padding:8px;margin:-8px 0;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);min-width:40px;min-height:40px; }
+.phrasebook-back:active { background:var(--surfaceAlt); }
+.phrasebook-topbar-title { flex:1;font-size:17px;font-weight:600;color:var(--text); }
+
+.phrasebook-categories { display:flex;gap:8px;padding:12px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0; }
+.phrasebook-categories::-webkit-scrollbar { display:none; }
+.phrasebook-cat-btn { padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 0.15s;display:flex;align-items:center;gap:6px; }
+.phrasebook-cat-btn:active { background:var(--surfaceAlt); }
+.phrasebook-cat-btn.active { background:var(--seaSoft);color:var(--sea);border-color:var(--sea); }
+
+.phrasebook-list { flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 0 20px;display:flex;flex-direction:column;gap:8px; }
+.phrasebook-item { background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);padding:14px;box-shadow:var(--shadowSm);cursor:pointer;transition:all 0.15s; }
+.phrasebook-item:active { background:var(--surfaceAlt); }
+.phrasebook-item-source { font-size:14px;color:var(--text);margin-bottom:4px;line-height:1.4; }
+.phrasebook-item-target { font-size:14px;color:var(--sea);line-height:1.4;font-weight:500; }
+.phrasebook-item-actions { display:flex;gap:8px;margin-top:8px; }
+.phrasebook-item-actions .icon-btn { width:36px;height:36px;border-radius:var(--r12); }
+.phrasebook-item-actions .icon-btn svg { width:14px;height:14px; }
+
+/* Phrasebook button in header */
+.phrasebook-header-btn { border:none;background:none;cursor:pointer;color:var(--muted);padding:8px;border-radius:var(--r12);min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;transition:all 0.2s; }
+.phrasebook-header-btn:hover { background:var(--surfaceAlt);color:var(--text); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
@@ -1030,10 +1077,13 @@ body {
       <img class="logo-icon" src="icons/icon.svg" alt="T">
       <div class="logo-text">Travel<span>Talk</span></div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;gap:4px">
       <button class="voice-gender-btn" id="voiceGenderBtn" onclick="toggleVoiceGender()" title="Сменить голос">
         <svg id="voiceGenderIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
         <span id="voiceGenderLabel">Жен</span>
+      </button>
+      <button class="phrasebook-header-btn" onclick="togglePhrasebook()" title="Разговорник">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
       </button>
       <button class="icon-btn header-icon-btn" onclick="toggleHistory()" title="История">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -1067,6 +1117,11 @@ body {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
       Файл
     </button>
+  </div>
+
+  <div class="offline-banner" id="offlineBanner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+    Оффлайн — доступен разговорник и кэш
   </div>
 
   <div class="lang-bar">
@@ -1319,6 +1374,18 @@ body {
       <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">Загрузка...</div>
     </div>
     <button class="history-load-more hidden" id="historyLoadMore" onclick="loadMoreHistory()">Загрузить ещё</button>
+  </div>
+
+  <!-- PHRASEBOOK VIEW -->
+  <div class="phrasebook-view" id="phrasebookView">
+    <div class="phrasebook-topbar">
+      <button class="phrasebook-back" onclick="togglePhrasebook()">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="phrasebook-topbar-title">Разговорник</div>
+    </div>
+    <div class="phrasebook-categories" id="phrasebookCategories"></div>
+    <div class="phrasebook-list" id="phrasebookList"></div>
   </div>
 
 </div><!-- /app -->
@@ -2985,6 +3052,439 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// ===== INDEXEDDB — OFFLINE CACHE =====
+const DB_NAME = 'traveltalk_offline';
+const DB_VERSION = 1;
+let offlineDb = null;
+
+function openOfflineDB() {
+  return new Promise((resolve, reject) => {
+    if (offlineDb) { resolve(offlineDb); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('translations')) {
+        const store = db.createObjectStore('translations', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('lookup', ['source_lang', 'target_lang', 'source_text'], { unique: false });
+        store.createIndex('by_date', 'created_at', { unique: false });
+      }
+    };
+    req.onsuccess = (e) => { offlineDb = e.target.result; resolve(offlineDb); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function cacheTranslation(srcLang, tgtLang, sourceText, translatedText, mode) {
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction('translations', 'readwrite');
+    const store = tx.objectStore('translations');
+    store.put({
+      source_lang: srcLang,
+      target_lang: tgtLang,
+      source_text: sourceText.trim().toLowerCase(),
+      source_text_original: sourceText.trim(),
+      translated_text: translatedText,
+      mode: mode || 'text',
+      created_at: new Date().toISOString()
+    });
+  } catch (e) { console.warn('[Offline] Cache write error:', e); }
+}
+
+async function findCachedTranslation(srcLang, tgtLang, sourceText) {
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction('translations', 'readonly');
+    const store = tx.objectStore('translations');
+    const index = store.index('lookup');
+    const key = [srcLang, tgtLang, sourceText.trim().toLowerCase()];
+    return new Promise((resolve) => {
+      const req = index.get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) { return null; }
+}
+
+async function getRecentCachedTranslations(limit) {
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction('translations', 'readonly');
+    const store = tx.objectStore('translations');
+    const index = store.index('by_date');
+    return new Promise((resolve) => {
+      const results = [];
+      const req = index.openCursor(null, 'prev');
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor && results.length < (limit || 50)) {
+          results.push(cursor.value);
+          cursor.continue();
+        } else {
+          resolve(results);
+        }
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch (e) { return []; }
+}
+
+// Patch saveTranslation to also cache locally
+const _origSaveTranslation = saveTranslation;
+saveTranslation = function(mode, srcLang, tgtLang, sourceText, translatedText, metadata) {
+  _origSaveTranslation(mode, srcLang, tgtLang, sourceText, translatedText, metadata);
+  cacheTranslation(srcLang, tgtLang, sourceText, translatedText, mode);
+};
+
+// ===== OFFLINE DETECTION =====
+let isOffline = !navigator.onLine;
+
+function updateOfflineState() {
+  isOffline = !navigator.onLine;
+  const banner = document.getElementById('offlineBanner');
+  if (banner) banner.classList.toggle('visible', isOffline);
+}
+
+window.addEventListener('online', updateOfflineState);
+window.addEventListener('offline', updateOfflineState);
+document.addEventListener('DOMContentLoaded', () => {
+  updateOfflineState();
+  openOfflineDB().catch(() => {});
+});
+
+// ===== TRAVEL PHRASEBOOK =====
+const PHRASEBOOK = {
+  greetings: {
+    icon: '👋',
+    name: { ru: 'Приветствия', en: 'Greetings' },
+    phrases: [
+      { ru: 'Здравствуйте', en: 'Hello', de: 'Hallo', fr: 'Bonjour', it: 'Buongiorno', es: 'Hola', 'pt-BR': 'Olá', el: 'Γεια σας' },
+      { ru: 'До свидания', en: 'Goodbye', de: 'Auf Wiedersehen', fr: 'Au revoir', it: 'Arrivederci', es: 'Adiós', 'pt-BR': 'Tchau', el: 'Αντίο' },
+      { ru: 'Спасибо', en: 'Thank you', de: 'Danke', fr: 'Merci', it: 'Grazie', es: 'Gracias', 'pt-BR': 'Obrigado', el: 'Ευχαριστώ' },
+      { ru: 'Пожалуйста', en: 'Please', de: 'Bitte', fr: "S'il vous plaît", it: 'Per favore', es: 'Por favor', 'pt-BR': 'Por favor', el: 'Παρακαλώ' },
+      { ru: 'Извините', en: 'Excuse me', de: 'Entschuldigung', fr: 'Excusez-moi', it: 'Mi scusi', es: 'Disculpe', 'pt-BR': 'Com licença', el: 'Συγγνώμη' },
+      { ru: 'Да', en: 'Yes', de: 'Ja', fr: 'Oui', it: 'Sì', es: 'Sí', 'pt-BR': 'Sim', el: 'Ναι' },
+      { ru: 'Нет', en: 'No', de: 'Nein', fr: 'Non', it: 'No', es: 'No', 'pt-BR': 'Não', el: 'Όχι' },
+      { ru: 'Доброе утро', en: 'Good morning', de: 'Guten Morgen', fr: 'Bonjour', it: 'Buongiorno', es: 'Buenos días', 'pt-BR': 'Bom dia', el: 'Καλημέρα' },
+      { ru: 'Добрый вечер', en: 'Good evening', de: 'Guten Abend', fr: 'Bonsoir', it: 'Buonasera', es: 'Buenas tardes', 'pt-BR': 'Boa noite', el: 'Καλησπέρα' },
+      { ru: 'Как дела?', en: 'How are you?', de: 'Wie geht es Ihnen?', fr: 'Comment allez-vous?', it: 'Come sta?', es: '¿Cómo está?', 'pt-BR': 'Como vai?', el: 'Πώς είστε;' },
+    ]
+  },
+  restaurant: {
+    icon: '🍽️',
+    name: { ru: 'Ресторан', en: 'Restaurant' },
+    phrases: [
+      { ru: 'Столик на двоих, пожалуйста', en: 'A table for two, please', de: 'Einen Tisch für zwei, bitte', fr: 'Une table pour deux, s\'il vous plaît', it: 'Un tavolo per due, per favore', es: 'Una mesa para dos, por favor', 'pt-BR': 'Uma mesa para dois, por favor', el: 'Ένα τραπέζι για δύο, παρακαλώ' },
+      { ru: 'Можно меню?', en: 'Can I see the menu?', de: 'Kann ich die Speisekarte sehen?', fr: 'Puis-je voir le menu?', it: 'Posso vedere il menu?', es: '¿Puedo ver el menú?', 'pt-BR': 'Posso ver o cardápio?', el: 'Μπορώ να δω το μενού;' },
+      { ru: 'Счёт, пожалуйста', en: 'The bill, please', de: 'Die Rechnung, bitte', fr: "L'addition, s'il vous plaît", it: 'Il conto, per favore', es: 'La cuenta, por favor', 'pt-BR': 'A conta, por favor', el: 'Τον λογαριασμό, παρακαλώ' },
+      { ru: 'Что вы рекомендуете?', en: 'What do you recommend?', de: 'Was empfehlen Sie?', fr: 'Que recommandez-vous?', it: 'Cosa consiglia?', es: '¿Qué recomienda?', 'pt-BR': 'O que você recomenda?', el: 'Τι προτείνετε;' },
+      { ru: 'Я вегетарианец', en: 'I am a vegetarian', de: 'Ich bin Vegetarier', fr: 'Je suis végétarien', it: 'Sono vegetariano', es: 'Soy vegetariano', 'pt-BR': 'Sou vegetariano', el: 'Είμαι χορτοφάγος' },
+      { ru: 'У меня аллергия на...', en: 'I am allergic to...', de: 'Ich bin allergisch gegen...', fr: 'Je suis allergique à...', it: 'Sono allergico a...', es: 'Soy alérgico a...', 'pt-BR': 'Sou alérgico a...', el: 'Είμαι αλλεργικός σε...' },
+      { ru: 'Воду, пожалуйста', en: 'Water, please', de: 'Wasser, bitte', fr: "De l'eau, s'il vous plaît", it: "Dell'acqua, per favore", es: 'Agua, por favor', 'pt-BR': 'Água, por favor', el: 'Νερό, παρακαλώ' },
+      { ru: 'Очень вкусно!', en: 'Very delicious!', de: 'Sehr lecker!', fr: 'Très délicieux!', it: 'Molto buono!', es: '¡Muy delicioso!', 'pt-BR': 'Muito gostoso!', el: 'Πολύ νόστιμο!' },
+    ]
+  },
+  hotel: {
+    icon: '🏨',
+    name: { ru: 'Отель', en: 'Hotel' },
+    phrases: [
+      { ru: 'У меня бронь', en: 'I have a reservation', de: 'Ich habe eine Reservierung', fr: "J'ai une réservation", it: 'Ho una prenotazione', es: 'Tengo una reserva', 'pt-BR': 'Eu tenho uma reserva', el: 'Έχω κράτηση' },
+      { ru: 'Во сколько выезд?', en: 'What time is checkout?', de: 'Wann ist der Check-out?', fr: "À quelle heure est le départ?", it: 'A che ora è il check-out?', es: '¿A qué hora es el check-out?', 'pt-BR': 'A que horas é o checkout?', el: 'Τι ώρα είναι η αναχώρηση;' },
+      { ru: 'Какой пароль от Wi-Fi?', en: 'What is the Wi-Fi password?', de: 'Wie ist das WLAN-Passwort?', fr: 'Quel est le mot de passe Wi-Fi?', it: 'Qual è la password del Wi-Fi?', es: '¿Cuál es la contraseña del Wi-Fi?', 'pt-BR': 'Qual é a senha do Wi-Fi?', el: 'Ποιος είναι ο κωδικός Wi-Fi;' },
+      { ru: 'Можно ещё одно полотенце?', en: 'Can I have an extra towel?', de: 'Kann ich ein extra Handtuch bekommen?', fr: 'Puis-je avoir une serviette supplémentaire?', it: 'Posso avere un asciugamano in più?', es: '¿Puedo tener una toalla extra?', 'pt-BR': 'Posso ter uma toalha extra?', el: 'Μπορώ να έχω μια επιπλέον πετσέτα;' },
+      { ru: 'Где лифт?', en: 'Where is the elevator?', de: 'Wo ist der Aufzug?', fr: "Où est l'ascenseur?", it: "Dov'è l'ascensore?", es: '¿Dónde está el ascensor?', 'pt-BR': 'Onde é o elevador?', el: 'Πού είναι το ασανσέρ;' },
+      { ru: 'Кондиционер не работает', en: 'The air conditioning is not working', de: 'Die Klimaanlage funktioniert nicht', fr: 'La climatisation ne fonctionne pas', it: "L'aria condizionata non funziona", es: 'El aire acondicionado no funciona', 'pt-BR': 'O ar-condicionado não está funcionando', el: 'Ο κλιματισμός δεν λειτουργεί' },
+    ]
+  },
+  transport: {
+    icon: '🚕',
+    name: { ru: 'Транспорт', en: 'Transport' },
+    phrases: [
+      { ru: 'Как добраться до...?', en: 'How do I get to...?', de: 'Wie komme ich zu...?', fr: 'Comment aller à...?', it: 'Come arrivo a...?', es: '¿Cómo llego a...?', 'pt-BR': 'Como chego a...?', el: 'Πώς πάω στο...;' },
+      { ru: 'Сколько стоит такси до...?', en: 'How much is a taxi to...?', de: 'Was kostet ein Taxi zu...?', fr: 'Combien coûte un taxi pour...?', it: 'Quanto costa un taxi per...?', es: '¿Cuánto cuesta un taxi a...?', 'pt-BR': 'Quanto custa um táxi para...?', el: 'Πόσο κοστίζει ένα ταξί για...;' },
+      { ru: 'Где ближайшая станция метро?', en: 'Where is the nearest metro station?', de: 'Wo ist die nächste U-Bahn-Station?', fr: 'Où est la station de métro la plus proche?', it: "Dov'è la stazione della metro più vicina?", es: '¿Dónde está la estación de metro más cercana?', 'pt-BR': 'Onde é a estação de metrô mais próxima?', el: 'Πού είναι ο πλησιέστερος σταθμός μετρό;' },
+      { ru: 'Остановите здесь, пожалуйста', en: 'Stop here, please', de: 'Halten Sie hier, bitte', fr: 'Arrêtez ici, s\'il vous plaît', it: 'Si fermi qui, per favore', es: 'Pare aquí, por favor', 'pt-BR': 'Pare aqui, por favor', el: 'Σταματήστε εδώ, παρακαλώ' },
+      { ru: 'Где автобусная остановка?', en: 'Where is the bus stop?', de: 'Wo ist die Bushaltestelle?', fr: "Où est l'arrêt de bus?", it: "Dov'è la fermata dell'autobus?", es: '¿Dónde está la parada de autobús?', 'pt-BR': 'Onde é o ponto de ônibus?', el: 'Πού είναι η στάση λεωφορείου;' },
+      { ru: 'Один билет до...', en: 'One ticket to...', de: 'Eine Fahrkarte nach...', fr: 'Un billet pour...', it: 'Un biglietto per...', es: 'Un billete a...', 'pt-BR': 'Uma passagem para...', el: 'Ένα εισιτήριο για...' },
+      { ru: 'Где аэропорт?', en: 'Where is the airport?', de: 'Wo ist der Flughafen?', fr: "Où est l'aéroport?", it: "Dov'è l'aeroporto?", es: '¿Dónde está el aeropuerto?', 'pt-BR': 'Onde é o aeroporto?', el: 'Πού είναι το αεροδρόμιο;' },
+    ]
+  },
+  shopping: {
+    icon: '🛍️',
+    name: { ru: 'Магазин', en: 'Shopping' },
+    phrases: [
+      { ru: 'Сколько это стоит?', en: 'How much does it cost?', de: 'Wie viel kostet das?', fr: 'Combien ça coûte?', it: 'Quanto costa?', es: '¿Cuánto cuesta?', 'pt-BR': 'Quanto custa?', el: 'Πόσο κοστίζει;' },
+      { ru: 'Можно примерить?', en: 'Can I try it on?', de: 'Kann ich es anprobieren?', fr: 'Puis-je l\'essayer?', it: 'Posso provarlo?', es: '¿Puedo probármelo?', 'pt-BR': 'Posso experimentar?', el: 'Μπορώ να το δοκιμάσω;' },
+      { ru: 'Есть ли скидка?', en: 'Is there a discount?', de: 'Gibt es einen Rabatt?', fr: 'Y a-t-il une réduction?', it: "C'è uno sconto?", es: '¿Hay descuento?', 'pt-BR': 'Tem desconto?', el: 'Υπάρχει έκπτωση;' },
+      { ru: 'Принимаете карты?', en: 'Do you accept cards?', de: 'Nehmen Sie Karten an?', fr: 'Acceptez-vous les cartes?', it: 'Accettate carte?', es: '¿Aceptan tarjetas?', 'pt-BR': 'Aceitam cartão?', el: 'Δέχεστε κάρτες;' },
+      { ru: 'Где ближайший банкомат?', en: 'Where is the nearest ATM?', de: 'Wo ist der nächste Geldautomat?', fr: 'Où est le distributeur le plus proche?', it: "Dov'è il bancomat più vicino?", es: '¿Dónde está el cajero más cercano?', 'pt-BR': 'Onde é o caixa eletrônico mais próximo?', el: 'Πού είναι το πλησιέστερο ATM;' },
+      { ru: 'Мне нужен пакет', en: 'I need a bag', de: 'Ich brauche eine Tüte', fr: "J'ai besoin d'un sac", it: 'Ho bisogno di un sacchetto', es: 'Necesito una bolsa', 'pt-BR': 'Preciso de uma sacola', el: 'Χρειάζομαι μια σακούλα' },
+    ]
+  },
+  emergency: {
+    icon: '🚨',
+    name: { ru: 'Экстренные', en: 'Emergency' },
+    phrases: [
+      { ru: 'Помогите!', en: 'Help!', de: 'Hilfe!', fr: 'Au secours!', it: 'Aiuto!', es: '¡Ayuda!', 'pt-BR': 'Socorro!', el: 'Βοήθεια!' },
+      { ru: 'Вызовите скорую!', en: 'Call an ambulance!', de: 'Rufen Sie einen Krankenwagen!', fr: 'Appelez une ambulance!', it: "Chiamate un'ambulanza!", es: '¡Llame a una ambulancia!', 'pt-BR': 'Chame uma ambulância!', el: 'Καλέστε ασθενοφόρο!' },
+      { ru: 'Вызовите полицию!', en: 'Call the police!', de: 'Rufen Sie die Polizei!', fr: 'Appelez la police!', it: 'Chiamate la polizia!', es: '¡Llame a la policía!', 'pt-BR': 'Chame a polícia!', el: 'Καλέστε την αστυνομία!' },
+      { ru: 'Мне нужен врач', en: 'I need a doctor', de: 'Ich brauche einen Arzt', fr: "J'ai besoin d'un médecin", it: 'Ho bisogno di un medico', es: 'Necesito un médico', 'pt-BR': 'Preciso de um médico', el: 'Χρειάζομαι γιατρό' },
+      { ru: 'Где ближайшая аптека?', en: 'Where is the nearest pharmacy?', de: 'Wo ist die nächste Apotheke?', fr: 'Où est la pharmacie la plus proche?', it: "Dov'è la farmacia più vicina?", es: '¿Dónde está la farmacia más cercana?', 'pt-BR': 'Onde é a farmácia mais próxima?', el: 'Πού είναι το πλησιέστερο φαρμακείο;' },
+      { ru: 'Я потерял паспорт', en: 'I lost my passport', de: 'Ich habe meinen Reisepass verloren', fr: "J'ai perdu mon passeport", it: 'Ho perso il passaporto', es: 'Perdí mi pasaporte', 'pt-BR': 'Perdi meu passaporte', el: 'Έχασα το διαβατήριό μου' },
+      { ru: 'Где посольство?', en: 'Where is the embassy?', de: 'Wo ist die Botschaft?', fr: "Où est l'ambassade?", it: "Dov'è l'ambasciata?", es: '¿Dónde está la embajada?', 'pt-BR': 'Onde é a embaixada?', el: 'Πού είναι η πρεσβεία;' },
+      { ru: 'Мне плохо', en: 'I feel sick', de: 'Mir ist schlecht', fr: 'Je me sens mal', it: 'Mi sento male', es: 'Me siento mal', 'pt-BR': 'Estou me sentindo mal', el: 'Δεν αισθάνομαι καλά' },
+    ]
+  },
+  navigation: {
+    icon: '🗺️',
+    name: { ru: 'Навигация', en: 'Navigation' },
+    phrases: [
+      { ru: 'Где находится...?', en: 'Where is...?', de: 'Wo ist...?', fr: 'Où est...?', it: "Dov'è...?", es: '¿Dónde está...?', 'pt-BR': 'Onde fica...?', el: 'Πού είναι...;' },
+      { ru: 'Направо', en: 'Turn right', de: 'Rechts abbiegen', fr: 'Tournez à droite', it: 'Giri a destra', es: 'Gire a la derecha', 'pt-BR': 'Vire à direita', el: 'Στρίψτε δεξιά' },
+      { ru: 'Налево', en: 'Turn left', de: 'Links abbiegen', fr: 'Tournez à gauche', it: 'Giri a sinistra', es: 'Gire a la izquierda', 'pt-BR': 'Vire à esquerda', el: 'Στρίψτε αριστερά' },
+      { ru: 'Прямо', en: 'Go straight', de: 'Geradeaus', fr: 'Tout droit', it: 'Dritto', es: 'Siga recto', 'pt-BR': 'Siga em frente', el: 'Ευθεία' },
+      { ru: 'Это далеко?', en: 'Is it far?', de: 'Ist es weit?', fr: 'Est-ce loin?', it: 'È lontano?', es: '¿Está lejos?', 'pt-BR': 'É longe?', el: 'Είναι μακριά;' },
+      { ru: 'Покажите на карте', en: 'Show me on the map', de: 'Zeigen Sie mir auf der Karte', fr: 'Montrez-moi sur la carte', it: 'Me lo mostri sulla mappa', es: 'Muéstreme en el mapa', 'pt-BR': 'Mostre-me no mapa', el: 'Δείξτε μου στον χάρτη' },
+    ]
+  },
+  numbers: {
+    icon: '🔢',
+    name: { ru: 'Числа и время', en: 'Numbers & Time' },
+    phrases: [
+      { ru: 'Который час?', en: 'What time is it?', de: 'Wie spät ist es?', fr: 'Quelle heure est-il?', it: 'Che ora è?', es: '¿Qué hora es?', 'pt-BR': 'Que horas são?', el: 'Τι ώρα είναι;' },
+      { ru: 'Сегодня', en: 'Today', de: 'Heute', fr: "Aujourd'hui", it: 'Oggi', es: 'Hoy', 'pt-BR': 'Hoje', el: 'Σήμερα' },
+      { ru: 'Завтра', en: 'Tomorrow', de: 'Morgen', fr: 'Demain', it: 'Domani', es: 'Mañana', 'pt-BR': 'Amanhã', el: 'Αύριο' },
+      { ru: 'Вчера', en: 'Yesterday', de: 'Gestern', fr: 'Hier', it: 'Ieri', es: 'Ayer', 'pt-BR': 'Ontem', el: 'Χθες' },
+      { ru: 'Один', en: 'One', de: 'Eins', fr: 'Un', it: 'Uno', es: 'Uno', 'pt-BR': 'Um', el: 'Ένα' },
+      { ru: 'Два', en: 'Two', de: 'Zwei', fr: 'Deux', it: 'Due', es: 'Dos', 'pt-BR': 'Dois', el: 'Δύο' },
+      { ru: 'Три', en: 'Three', de: 'Drei', fr: 'Trois', it: 'Tre', es: 'Tres', 'pt-BR': 'Três', el: 'Τρία' },
+      { ru: 'Десять', en: 'Ten', de: 'Zehn', fr: 'Dix', it: 'Dieci', es: 'Diez', 'pt-BR': 'Dez', el: 'Δέκα' },
+      { ru: 'Сто', en: 'One hundred', de: 'Hundert', fr: 'Cent', it: 'Cento', es: 'Cien', 'pt-BR': 'Cem', el: 'Εκατό' },
+      { ru: 'Тысяча', en: 'One thousand', de: 'Tausend', fr: 'Mille', it: 'Mille', es: 'Mil', 'pt-BR': 'Mil', el: 'Χίλια' },
+    ]
+  }
+};
+
+let currentPhrasebookCategory = 'greetings';
+
+function togglePhrasebook() {
+  const main = document.getElementById('mainView');
+  const hist = document.getElementById('historyView');
+  const pb = document.getElementById('phrasebookView');
+  const isOpen = pb.classList.contains('visible');
+  if (isOpen) {
+    pb.classList.remove('visible');
+    main.style.display = '';
+  } else {
+    main.style.display = 'none';
+    hist.classList.remove('visible');
+    pb.classList.add('visible');
+    renderPhrasebookCategories();
+    renderPhrasebookPhrases();
+  }
+}
+
+function renderPhrasebookCategories() {
+  const container = document.getElementById('phrasebookCategories');
+  container.innerHTML = '';
+  for (const [key, cat] of Object.entries(PHRASEBOOK)) {
+    const btn = document.createElement('button');
+    btn.className = 'phrasebook-cat-btn' + (key === currentPhrasebookCategory ? ' active' : '');
+    btn.textContent = cat.icon + ' ' + (cat.name.ru || cat.name.en);
+    btn.onclick = () => {
+      currentPhrasebookCategory = key;
+      renderPhrasebookCategories();
+      renderPhrasebookPhrases();
+    };
+    container.appendChild(btn);
+  }
+}
+
+function renderPhrasebookPhrases() {
+  const container = document.getElementById('phrasebookList');
+  container.innerHTML = '';
+  const cat = PHRASEBOOK[currentPhrasebookCategory];
+  if (!cat) return;
+
+  const src = sourceLang;
+  const tgt = targetLang;
+  // Map lang codes: pt-BR stays as is, others need mapping
+  const srcKey = src;
+  const tgtKey = tgt;
+
+  cat.phrases.forEach(phrase => {
+    const srcText = phrase[srcKey] || phrase.en || '';
+    const tgtText = phrase[tgtKey] || phrase.en || '';
+    if (!srcText || !tgtText) return;
+
+    const item = document.createElement('div');
+    item.className = 'phrasebook-item';
+
+    const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const tgtTtsLang = LANGS[tgt] ? LANGS[tgt].tts : 'en-US';
+
+    item.innerHTML =
+      '<div class="phrasebook-item-source">' + escapeHtml(srcText) + '</div>' +
+      '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
+      '<div class="phrasebook-item-actions">' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+      '</div>';
+
+    container.appendChild(item);
+  });
+}
+
+function speakPhrase(text, lang, btn) {
+  // Use browser TTS directly for phrasebook (works offline)
+  if (currentSource || ttsPlaying || (window.speechSynthesis && window.speechSynthesis.speaking)) {
+    stopAudio();
+    return;
+  }
+  if (isOffline) {
+    speakWithBrowserTTS(text, lang, btn);
+  } else {
+    speakText(text, lang, btn);
+  }
+}
+
+function speakWithBrowserTTS(text, lang, btn) {
+  if (!('speechSynthesis' in window)) {
+    showToast('Синтез речи недоступен');
+    return;
+  }
+  clearSpeakingState();
+  if (btn) btn.classList.add('speaking');
+  showGlobalStop();
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  u.rate = 0.9;
+
+  const baseLang = lang.split('-')[0];
+  const voices = window.speechSynthesis.getVoices();
+  const match = voices.find(v => v.lang === lang)
+    || voices.find(v => v.lang.startsWith(baseLang + '-'))
+    || voices.find(v => v.lang.startsWith(baseLang));
+  if (match) {
+    u.voice = match;
+    u.lang = match.lang;
+  }
+  u.onend = () => clearSpeakingState();
+  u.onerror = () => clearSpeakingState();
+  window.speechSynthesis.speak(u);
+}
+
+function copyPhrase(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('Скопировано')).catch(() => {});
+}
+
+// ===== OFFLINE-AWARE TRANSLATION =====
+// Patch translateText to check local cache when offline
+const _origTranslateText = translateText;
+translateText = async function() {
+  if (!isOffline) { return _origTranslateText(); }
+
+  const text = document.getElementById('textInput').value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('textTranslateBtn');
+  btn.disabled = true; btn.textContent = '...';
+
+  // Try to find in local cache
+  const cached = await findCachedTranslation(sourceLang, targetLang, text);
+  if (cached) {
+    document.getElementById('textResultText').textContent = cached.translated_text;
+    document.getElementById('textResultText').dataset.lang = LANGS[targetLang].tts;
+    document.getElementById('textResultLabel').textContent = LANGS[targetLang].name;
+    document.getElementById('textResult').classList.add('visible');
+    showToast('Найдено в кэше (оффлайн)');
+  } else {
+    // Also try reverse direction
+    const cachedReverse = await findCachedTranslation(targetLang, sourceLang, text);
+    if (cachedReverse) {
+      document.getElementById('textResultText').textContent = cachedReverse.translated_text;
+      document.getElementById('textResultText').dataset.lang = LANGS[sourceLang].tts;
+      document.getElementById('textResultLabel').textContent = LANGS[sourceLang].name;
+      document.getElementById('textResult').classList.add('visible');
+      showToast('Найдено в кэше (оффлайн)');
+    } else {
+      // Check phrasebook
+      const pbResult = findInPhrasebook(text, sourceLang, targetLang);
+      if (pbResult) {
+        document.getElementById('textResultText').textContent = pbResult;
+        document.getElementById('textResultText').dataset.lang = LANGS[targetLang].tts;
+        document.getElementById('textResultLabel').textContent = LANGS[targetLang].name;
+        document.getElementById('textResult').classList.add('visible');
+        showToast('Найдено в разговорнике (оффлайн)');
+      } else {
+        showToast('Нет интернета. Перевод недоступен. Используйте разговорник.');
+      }
+    }
+  }
+
+  btn.disabled = false; btn.textContent = 'Перевести';
+};
+
+function findInPhrasebook(text, srcLang, tgtLang) {
+  const needle = text.trim().toLowerCase().replace(/[.!?;,]$/, '');
+  for (const cat of Object.values(PHRASEBOOK)) {
+    for (const phrase of cat.phrases) {
+      const src = (phrase[srcLang] || '').toLowerCase().replace(/[.!?;,]$/, '');
+      if (src && src === needle) {
+        return phrase[tgtLang] || null;
+      }
+    }
+  }
+  return null;
+}
+
+// ===== OFFLINE-AWARE TTS =====
+// Patch speakText to use browser TTS when offline
+const _origSpeakText = speakText;
+speakText = async function(text, lang, btn, genderOverride) {
+  if (isOffline) {
+    speakWithBrowserTTS(text, lang, btn);
+    return;
+  }
+  return _origSpeakText(text, lang, btn, genderOverride);
+};
+
+// ===== OFFLINE-AWARE HISTORY =====
+// Patch loadHistory to show cached translations when offline
+const _origLoadHistory = loadHistory;
+loadHistory = async function() {
+  if (!isOffline) { return _origLoadHistory(); }
+
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:13px">Загрузка из кэша...</div>';
+  document.getElementById('historyLoadMore').classList.add('hidden');
+
+  const cached = await getRecentCachedTranslations(50);
+  list.innerHTML = '';
+
+  if (cached.length === 0) {
+    list.innerHTML = renderHistoryEmpty('Кэш пуст', 'Переводы появятся здесь после использования с интернетом');
+    return;
+  }
+
+  cached.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'history-item';
+    const date = new Date(t.created_at).toLocaleString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+    const modeNames = { text: 'Текст', photo: 'Фото', voice: 'Голос', file: 'Файл' };
+    el.innerHTML = '<div class="history-item-header"><span class="history-item-mode">' + (modeNames[t.mode] || t.mode) + '</span><span class="history-item-date">' + date + ' (кэш)</span></div>' +
+      '<div class="history-item-source">' + escapeHtml((t.source_text_original || t.source_text || '').substring(0, 200)) + '</div>' +
+      '<div class="history-item-text">' + escapeHtml((t.translated_text || '').substring(0, 300)) + '</div>' +
+      '<div class="history-item-langs">' + (t.source_lang || '') + ' → ' + (t.target_lang || '') + '</div>';
+    list.appendChild(el);
+  });
+};
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
