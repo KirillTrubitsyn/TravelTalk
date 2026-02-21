@@ -1205,6 +1205,18 @@ body {
 .pronunciation-play-btn.my-play { border-color:var(--terracotta);color:var(--terracotta); }
 .pronunciation-play-btn svg { width:18px;height:18px;flex-shrink:0; }
 .pronunciation-vs { font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase; }
+.pronunciation-speed { display:flex;align-items:center;justify-content:center;gap:0;margin-top:4px; }
+.pronunciation-speed-label { font-size:11px;color:var(--muted);margin-right:8px;font-weight:500; }
+.pronunciation-speed-btn {
+  padding:5px 10px;border:1px solid var(--border);background:var(--surface);color:var(--muted);
+  font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;
+}
+.pronunciation-speed-btn:first-of-type { border-radius:var(--r12) 0 0 var(--r12); }
+.pronunciation-speed-btn:last-of-type { border-radius:0 var(--r12) var(--r12) 0; }
+.pronunciation-speed-btn + .pronunciation-speed-btn { border-left:none; }
+.pronunciation-speed-btn:hover { background:var(--surfaceAlt);color:var(--text); }
+.pronunciation-speed-btn.active { background:var(--sea);color:white;border-color:var(--sea); }
+.pronunciation-speed-btn.active + .pronunciation-speed-btn { border-left-color:var(--sea); }
 
 /* Save-to-phrasebook category modal */
 .save-category-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:flex-end;justify-content:center; }
@@ -3040,6 +3052,9 @@ let pronunciationAudioUrl = null;
 let pronunciationMediaRecorder = null;
 let pronunciationMicStream = null;
 let pronunciationCountdownTimer = null;
+let pronunciationPlaybackRate = 1.0;
+let pronunciationTtsBuffer = null;
+let pronunciationSpeedSource = null;
 
 function openPronunciationTrainer(btn) {
   const card = btn.closest('.result-card');
@@ -3051,7 +3066,10 @@ function openPronunciationTrainer(btn) {
   pronunciationTargetLang = textEl.dataset.lang || LANGS[targetLang].tts;
   pronunciationSpokenText = '';
   pronunciationConfidence = 0;
+  pronunciationTtsBuffer = null;
+  pronunciationPlaybackRate = 1.0;
   cleanupPronunciationAudio();
+  stopPronunciationSpeedPlayback();
 
   document.getElementById('pronunciationPhrase').textContent = pronunciationTargetText;
   document.getElementById('pronunciationHint').textContent = 'Послушайте фразу и попробуйте повторить';
@@ -3066,6 +3084,7 @@ function openPronunciationTrainer(btn) {
   document.getElementById('pronunciationTips').classList.remove('visible');
   document.getElementById('pronunciationMic').classList.remove('recording');
   document.getElementById('pronunciationCountdown').style.display = 'none';
+  updateSpeedButtons();
   document.getElementById('pronunciationOverlay').classList.add('visible');
 }
 
@@ -3095,18 +3114,74 @@ function closePronunciationTrainer() {
     pronunciationRecording = false;
   }
   cleanupPronunciationAudio();
+  stopPronunciationSpeedPlayback();
   stopAudio();
   document.getElementById('pronunciationOverlay').classList.remove('visible');
   document.getElementById('pronunciationMic').classList.remove('recording');
   document.getElementById('pronunciationCountdown').style.display = 'none';
 }
 
+function stopPronunciationSpeedPlayback() {
+  if (pronunciationSpeedSource) {
+    try { pronunciationSpeedSource.stop(); } catch(e) {}
+    pronunciationSpeedSource = null;
+  }
+}
+
+function setPronunciationSpeed(rate) {
+  pronunciationPlaybackRate = rate;
+  updateSpeedButtons();
+}
+
+function updateSpeedButtons() {
+  const btns = document.querySelectorAll('#pronunciationSpeed .pronunciation-speed-btn');
+  btns.forEach(btn => {
+    const btnRate = parseFloat(btn.textContent);
+    btn.classList.toggle('active', Math.abs(btnRate - pronunciationPlaybackRate) < 0.01);
+  });
+}
+
+async function playTargetPhraseAtSpeed(rate) {
+  if (rate !== undefined) pronunciationPlaybackRate = rate;
+  stopPronunciationSpeedPlayback();
+  stopAudio();
+
+  const ctx = getAudioContext();
+  await ctx.resume();
+
+  // Fetch and cache TTS buffer
+  if (!pronunciationTtsBuffer) {
+    const btn = document.getElementById('pronunciationListenBtn');
+    if (btn) btn.classList.add('speaking');
+    try {
+      pronunciationTtsBuffer = await fetchTtsBuffer(pronunciationTargetText, pronunciationTargetLang);
+    } catch(e) {
+      if (btn) btn.classList.remove('speaking');
+      showToast('Ошибка загрузки аудио');
+      return;
+    }
+    if (btn) btn.classList.remove('speaking');
+  }
+
+  // Play at specified speed
+  const source = ctx.createBufferSource();
+  source.buffer = pronunciationTtsBuffer;
+  source.playbackRate.value = pronunciationPlaybackRate;
+  source.connect(ctx.destination);
+  pronunciationSpeedSource = source;
+  source.onended = () => {
+    if (pronunciationSpeedSource === source) pronunciationSpeedSource = null;
+  };
+  source.start(0);
+}
+
 function playTargetPhrase() {
-  speakText(pronunciationTargetText, pronunciationTargetLang, document.getElementById('pronunciationListenBtn'));
+  playTargetPhraseAtSpeed(1.0);
 }
 
 function playMyRecording() {
   if (!pronunciationAudioUrl) { showToast('Нет записи'); return; }
+  stopPronunciationSpeedPlayback();
   stopAudio();
   const audio = new Audio(pronunciationAudioUrl);
   audio.play().catch(e => showToast('Ошибка воспроизведения'));
@@ -3290,17 +3365,29 @@ function getPronunciationLangName() {
 async function evaluatePronunciation(target, spoken, confidence) {
   const langName = getPronunciationLangName();
 
-  const systemPrompt = 'You are a strict professional ' + langName + ' pronunciation evaluator. ' +
-    'A student attempted to say a phrase. Their speech was processed by speech-to-text (STT). ' +
-    'IMPORTANT: STT systems auto-correct pronunciation — even poorly pronounced words may be recognized correctly. ' +
-    'Therefore a high text match does NOT guarantee good pronunciation. Be strict like a professional language teacher.\n\n' +
-    'Evaluate based on:\n' +
-    '1. Word accuracy: missing, extra, or substituted words\n' +
-    '2. STT confidence score (0-1): low confidence = poor pronunciation even if words match\n' +
-    '3. Common pronunciation mistakes native speakers of Russian make in ' + langName + '\n' +
-    '4. Likely phonetic errors based on any word differences\n\n' +
+  const systemPrompt = 'You are a very strict professional ' + langName + ' pronunciation examiner conducting a formal language proficiency test. ' +
+    'A Russian-speaking student attempted to pronounce a ' + langName + ' phrase. Their speech was processed by speech-to-text (STT).\n\n' +
+    'CRITICAL SCORING RULES:\n' +
+    '- STT systems AUTO-CORRECT bad pronunciation. Even terrible pronunciation may produce correct text. A text match does NOT mean good pronunciation!\n' +
+    '- STT confidence score is KEY: confidence < 0.85 = definitely pronunciation issues. confidence < 0.70 = serious problems.\n' +
+    '- You MUST assume Russian speakers have typical pronunciation problems in ' + langName + ': wrong stress, vowel reduction, consonant substitutions, wrong intonation.\n' +
+    '- Even if all words match AND confidence is high, deduct points for likely accent issues based on the specific phrase.\n\n' +
+    'SCORING SCALE (be strict!):\n' +
+    '- 90-100 (excellent): Near-native pronunciation. Almost no accent. Very rare — only give this if confidence > 0.95 AND all words match perfectly.\n' +
+    '- 70-89 (good): Understandable with minor accent. Some words slightly off. Confidence > 0.85.\n' +
+    '- 50-69 (fair): Noticeable accent, some words hard to understand. Missing or wrong words.\n' +
+    '- 30-49 (poor): Strong accent, several mispronounced words. Hard for natives to understand.\n' +
+    '- 0-29 (poor): Barely understandable or mostly wrong.\n\n' +
+    'PENALTIES:\n' +
+    '- Each missing word: -10 points\n' +
+    '- Each wrong/substituted word: -8 points\n' +
+    '- Each extra word (not in target): -5 points\n' +
+    '- Confidence < 0.85: additional -10 points\n' +
+    '- Confidence < 0.70: additional -20 points\n' +
+    '- Even with perfect text match: max score is 75 if confidence < 0.85, max 85 if confidence < 0.92\n\n' +
+    'For EACH word, evaluate whether a Russian speaker likely pronounced it correctly given common ' + langName + ' pronunciation pitfalls.\n\n' +
     'Respond ONLY with valid JSON (no markdown, no backticks):\n' +
-    '{"score":<0-100>,"assessment":"<excellent|good|fair|poor>","words":[{"word":"<each target word>","ok":<true/false>,"tip":"<short tip in Russian if wrong, empty string if ok>"}],"feedback":"<2-4 sentences in Russian: specific pronunciation tips, phonetic advice, encouragement>"}';
+    '{"score":<0-100>,"assessment":"<excellent|good|fair|poor>","words":[{"word":"<each target word>","ok":<true/false>,"tip":"<short tip in Russian if wrong, empty string if ok>"}],"feedback":"<3-5 sentences in Russian: specific errors, how to fix each, phonetic transcription of hard words, encouragement>"}';
 
   const userContent = 'Target phrase: "' + target + '"\n' +
     'STT recognized: "' + spoken + '"\n' +
@@ -3403,7 +3490,7 @@ function renderAIResult(result) {
 
   // Playback buttons — compare your recording with correct pronunciation
   let playbackHtml =
-    '<button class="pronunciation-play-btn correct-play" onclick="playTargetPhrase()">' +
+    '<button class="pronunciation-play-btn correct-play" onclick="playTargetPhraseAtSpeed()">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
       'Правильное' +
     '</button>' +
@@ -4851,12 +4938,20 @@ if ('serviceWorker' in navigator) {
     <div class="pronunciation-phrase" id="pronunciationPhrase"></div>
     <div class="pronunciation-hint" id="pronunciationHint">Послушайте фразу и попробуйте повторить</div>
     <div class="pronunciation-controls">
-      <button class="icon-btn" id="pronunciationListenBtn" onclick="playTargetPhrase()" title="Послушать фразу">
+      <button class="icon-btn" id="pronunciationListenBtn" onclick="playTargetPhraseAtSpeed()" title="Послушать фразу">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       </button>
       <div class="pronunciation-mic-ring" id="pronunciationMic" onclick="togglePronunciationRecording()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
       </div>
+    </div>
+    <div class="pronunciation-speed" id="pronunciationSpeed">
+      <span class="pronunciation-speed-label">Скорость:</span>
+      <button class="pronunciation-speed-btn" onclick="setPronunciationSpeed(0.6)">0.6x</button>
+      <button class="pronunciation-speed-btn" onclick="setPronunciationSpeed(0.8)">0.8x</button>
+      <button class="pronunciation-speed-btn active" onclick="setPronunciationSpeed(1.0)">1.0x</button>
+      <button class="pronunciation-speed-btn" onclick="setPronunciationSpeed(1.3)">1.3x</button>
+      <button class="pronunciation-speed-btn" onclick="setPronunciationSpeed(1.5)">1.5x</button>
     </div>
     <div class="pronunciation-countdown" id="pronunciationCountdown" style="display:none"></div>
     <div class="pronunciation-status" id="pronunciationStatus">Нажмите микрофон и повторите фразу</div>
