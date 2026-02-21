@@ -1141,12 +1141,14 @@ body {
 .icon-btn.saved { color:var(--success);border-color:var(--success); }
 .icon-btn.saved:hover { background:rgba(16,185,129,0.08); }
 
-/* Save-to-phrasebook category popup (in text/voice results) */
-.save-phrase-wrap { position:relative;display:inline-flex; }
-.save-category-popup { display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r12);padding:4px;box-shadow:var(--shadowLg);z-index:60;min-width:180px;max-height:280px;overflow-y:auto; }
-.save-category-popup.visible { display:block; }
-.save-category-option { display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--r8);border:none;background:none;color:var(--text);font-family:var(--font);font-size:13px;cursor:pointer;width:100%;text-align:left;transition:background 0.1s;white-space:nowrap; }
+/* Save-to-phrasebook category modal */
+.save-category-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:flex-end;justify-content:center; }
+.save-category-overlay.visible { display:flex; }
+.save-category-sheet { background:var(--surface);border-radius:var(--r20) var(--r20) 0 0;padding:12px 16px 24px;width:100%;max-width:480px;max-height:60vh;overflow-y:auto;animation:slideUp 0.25s ease; }
+.save-category-sheet-title { font-size:15px;font-weight:600;color:var(--text);padding:8px 4px 12px;text-align:center; }
+.save-category-option { display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r12);border:none;background:none;color:var(--text);font-family:var(--font);font-size:15px;cursor:pointer;width:100%;text-align:left;transition:background 0.15s; }
 .save-category-option:hover { background:var(--surfaceAlt); }
+.save-category-option:active { background:var(--seaSoft); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
@@ -1306,12 +1308,9 @@ body {
           <button class="icon-btn" onclick="speakResult('textResultText', this)" title="Озвучить">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
-          <div class="save-phrase-wrap">
-            <button class="icon-btn" onclick="toggleSaveCategoryPopup('text')" title="В разговорник" id="textSavePhraseBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
-            </button>
-            <div class="save-category-popup" id="textSaveCategoryPopup"></div>
-          </div>
+          <button class="icon-btn" onclick="showSaveCategoryModal('text')" title="В разговорник" id="textSavePhraseBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+          </button>
           <div style="flex:1"></div>
           <button class="new-translate-btn" onclick="clearTextForm()" title="Новый перевод">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1383,12 +1382,9 @@ body {
             <button class="icon-btn" onclick="speakResult('voiceResultText', this)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
             </button>
-            <div class="save-phrase-wrap">
-              <button class="icon-btn" onclick="toggleSaveCategoryPopup('voice')" title="В разговорник" id="voiceSavePhraseBtn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
-              </button>
-              <div class="save-category-popup" id="voiceSaveCategoryPopup"></div>
-            </div>
+            <button class="icon-btn" onclick="showSaveCategoryModal('voice')" title="В разговорник" id="voiceSavePhraseBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -4109,22 +4105,17 @@ async function deleteCustomPhrase(id) {
 }
 
 // ===== SAVE RESULT TO PHRASEBOOK =====
-function toggleSaveCategoryPopup(mode) {
-  const popupId = mode + 'SaveCategoryPopup';
-  const popup = document.getElementById(popupId);
-  if (popup.classList.contains('visible')) {
-    popup.classList.remove('visible');
-    return;
-  }
-
-  popup.innerHTML = '';
+function showSaveCategoryModal(mode) {
+  const overlay = document.getElementById('saveCategoryOverlay');
+  const list = document.getElementById('saveCategoryList');
+  list.innerHTML = '';
 
   // "Мои фразы" first
   const customOpt = document.createElement('button');
   customOpt.className = 'save-category-option';
-  customOpt.textContent = 'Мои фразы';
-  customOpt.onclick = () => { popup.classList.remove('visible'); saveResultToPhrasebook(mode, 'custom'); };
-  popup.appendChild(customOpt);
+  customOpt.textContent = '📝 Мои фразы';
+  customOpt.onclick = () => { overlay.classList.remove('visible'); saveResultToPhrasebook(mode, 'custom'); };
+  list.appendChild(customOpt);
 
   // All PHRASEBOOK categories
   for (const [key, cat] of Object.entries(PHRASEBOOK)) {
@@ -4133,23 +4124,12 @@ function toggleSaveCategoryPopup(mode) {
     const catNames = PB_CATEGORY_NAMES[key] || cat.name;
     const label = catNames[sourceLang] || catNames.ru || catNames.en;
     opt.textContent = cat.icon + ' ' + label;
-    opt.onclick = () => { popup.classList.remove('visible'); saveResultToPhrasebook(mode, key); };
-    popup.appendChild(opt);
+    opt.onclick = () => { overlay.classList.remove('visible'); saveResultToPhrasebook(mode, key); };
+    list.appendChild(opt);
   }
 
-  popup.classList.add('visible');
+  overlay.classList.add('visible');
 }
-
-// Close save-category popups on outside click
-document.addEventListener('click', function(e) {
-  ['textSaveCategoryPopup', 'voiceSaveCategoryPopup'].forEach(id => {
-    const popup = document.getElementById(id);
-    if (popup && popup.classList.contains('visible')) {
-      const wrap = popup.parentElement;
-      if (!wrap.contains(e.target)) popup.classList.remove('visible');
-    }
-  });
-});
 
 async function saveResultToPhrasebook(mode, category) {
   let sourceText, translatedText, srcLang, tgtLang, btnId;
@@ -4355,5 +4335,14 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 </script>
+
+<!-- Save-to-phrasebook category modal -->
+<div class="save-category-overlay" id="saveCategoryOverlay" onclick="if(event.target===this)this.classList.remove('visible')">
+  <div class="save-category-sheet">
+    <div class="save-category-sheet-title">Сохранить в раздел</div>
+    <div id="saveCategoryList"></div>
+  </div>
+</div>
+
 </body>
 </html>
