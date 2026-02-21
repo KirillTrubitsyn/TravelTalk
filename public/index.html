@@ -1115,6 +1115,10 @@ body {
 .pb-item-delete:hover { color:var(--danger);border-color:var(--danger);background:rgba(239,68,68,0.06); }
 .pb-item-delete svg { width:14px;height:14px; }
 .pb-custom-badge { font-size:10px;color:var(--terracotta);background:rgba(242,106,61,0.1);padding:1px 6px;border-radius:6px;font-weight:600; }
+
+/* Save to phrasebook button states */
+.icon-btn.saved { color:var(--success);border-color:var(--success); }
+.icon-btn.saved:hover { background:rgba(16,185,129,0.08); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
@@ -1274,6 +1278,9 @@ body {
           <button class="icon-btn" onclick="speakResult('textResultText', this)" title="Озвучить">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
+          <button class="icon-btn" onclick="saveResultToPhrasebook('text')" title="В разговорник" id="textSavePhraseBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+          </button>
           <div style="flex:1"></div>
           <button class="new-translate-btn" onclick="clearTextForm()" title="Новый перевод">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1344,6 +1351,9 @@ body {
             </button>
             <button class="icon-btn" onclick="speakResult('voiceResultText', this)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </button>
+            <button class="icon-btn" onclick="saveResultToPhrasebook('voice')" title="В разговорник" id="voiceSavePhraseBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
             </button>
           </div>
         </div>
@@ -2123,10 +2133,15 @@ async function translateText() {
     );
     const r = parseTranslateResult(raw);
     const toLang = getOtherLang(r.from);
-    document.getElementById('textResultText').textContent = r.text;
-    document.getElementById('textResultText').dataset.lang = LANGS[toLang].tts;
+    const textResultEl = document.getElementById('textResultText');
+    textResultEl.textContent = r.text;
+    textResultEl.dataset.lang = LANGS[toLang].tts;
+    textResultEl.dataset.sourceLang = r.from;
+    textResultEl.dataset.targetLang = toLang;
+    textResultEl.dataset.sourceText = text;
     document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
+    document.getElementById('textSavePhraseBtn').classList.remove('saved');
     renderExamples(r.examples, 'textExamples', 'textExamplesList');
     prefetchTts(r.text, LANGS[toLang].tts);
     saveTranslation('text', r.from, toLang, text, r.text);
@@ -2308,9 +2323,14 @@ async function toggleVoiceRecording() {
         const raw = await callTranslate(prompt, finalText.trim(), wantExamples ? 2048 : 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
         const toLang = getOtherLang(r.from);
-        document.getElementById('voiceResultText').textContent = r.text;
-        document.getElementById('voiceResultText').dataset.lang = LANGS[toLang].tts;
+        const voiceResultEl = document.getElementById('voiceResultText');
+        voiceResultEl.textContent = r.text;
+        voiceResultEl.dataset.lang = LANGS[toLang].tts;
+        voiceResultEl.dataset.sourceLang = r.from;
+        voiceResultEl.dataset.targetLang = toLang;
+        voiceResultEl.dataset.sourceText = finalText.trim();
         document.getElementById('voiceResult').classList.add('visible');
+        document.getElementById('voiceSavePhraseBtn').classList.remove('saved');
         renderExamples(r.examples, 'voiceExamples', 'voiceExamplesList');
         prefetchTts(r.text, LANGS[toLang].tts);
         saveTranslation('voice', r.from, toLang, finalText.trim(), r.text);
@@ -3844,6 +3864,77 @@ async function deleteCustomPhrase(id) {
   showToast('Фраза удалена');
 }
 
+// ===== SAVE RESULT TO PHRASEBOOK =====
+async function saveResultToPhrasebook(mode) {
+  let sourceText, translatedText, srcLang, tgtLang, btnId;
+
+  if (mode === 'text') {
+    const el = document.getElementById('textResultText');
+    sourceText = el.dataset.sourceText;
+    translatedText = el.textContent;
+    srcLang = el.dataset.sourceLang;
+    tgtLang = el.dataset.targetLang;
+    btnId = 'textSavePhraseBtn';
+  } else if (mode === 'voice') {
+    const el = document.getElementById('voiceResultText');
+    sourceText = el.dataset.sourceText;
+    translatedText = el.textContent;
+    srcLang = el.dataset.sourceLang;
+    tgtLang = el.dataset.targetLang;
+    btnId = 'voiceSavePhraseBtn';
+  }
+
+  if (!sourceText || !translatedText || !srcLang || !tgtLang) {
+    showToast('Нечего сохранить');
+    return;
+  }
+
+  // Check for duplicates
+  const exists = customPhrases.some(p =>
+    p.source_lang === srcLang && p.target_lang === tgtLang &&
+    p.source_text.trim().toLowerCase() === sourceText.trim().toLowerCase()
+  );
+  if (exists) {
+    showToast('Эта фраза уже в разговорнике');
+    if (btnId) document.getElementById(btnId).classList.add('saved');
+    return;
+  }
+
+  const phrase = {
+    category: 'custom',
+    source_lang: srcLang,
+    target_lang: tgtLang,
+    source_text: sourceText,
+    target_text: translatedText,
+    created_at: new Date().toISOString()
+  };
+
+  // Save to server if online
+  if (!isOffline && authToken) {
+    try {
+      const res = await fetch('/api/phrasebook/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(phrase)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.phrase) phrase.id = data.phrase.id;
+      }
+    } catch (e) { /* save locally anyway */ }
+  }
+
+  if (!phrase.id) {
+    phrase.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  }
+
+  customPhrases.unshift(phrase);
+  await saveCustomPhrasesToDB(customPhrases);
+
+  if (btnId) document.getElementById(btnId).classList.add('saved');
+  showToast('Сохранено в разговорник');
+}
+
 // ===== OFFLINE-AWARE TRANSLATION =====
 // Patch translateText to check local cache when offline
 const _origTranslateText = translateText;
@@ -3856,31 +3947,45 @@ translateText = async function() {
   const btn = document.getElementById('textTranslateBtn');
   btn.disabled = true; btn.textContent = '...';
 
+  const resultEl = document.getElementById('textResultText');
+
   // Try to find in local cache
   const cached = await findCachedTranslation(sourceLang, targetLang, text);
   if (cached) {
-    document.getElementById('textResultText').textContent = cached.translated_text;
-    document.getElementById('textResultText').dataset.lang = LANGS[targetLang].tts;
+    resultEl.textContent = cached.translated_text;
+    resultEl.dataset.lang = LANGS[targetLang].tts;
+    resultEl.dataset.sourceLang = sourceLang;
+    resultEl.dataset.targetLang = targetLang;
+    resultEl.dataset.sourceText = text;
     document.getElementById('textResultLabel').textContent = LANGS[targetLang].name;
     document.getElementById('textResult').classList.add('visible');
+    document.getElementById('textSavePhraseBtn').classList.remove('saved');
     showToast('Найдено в кэше (оффлайн)');
   } else {
     // Also try reverse direction
     const cachedReverse = await findCachedTranslation(targetLang, sourceLang, text);
     if (cachedReverse) {
-      document.getElementById('textResultText').textContent = cachedReverse.translated_text;
-      document.getElementById('textResultText').dataset.lang = LANGS[sourceLang].tts;
+      resultEl.textContent = cachedReverse.translated_text;
+      resultEl.dataset.lang = LANGS[sourceLang].tts;
+      resultEl.dataset.sourceLang = targetLang;
+      resultEl.dataset.targetLang = sourceLang;
+      resultEl.dataset.sourceText = text;
       document.getElementById('textResultLabel').textContent = LANGS[sourceLang].name;
       document.getElementById('textResult').classList.add('visible');
+      document.getElementById('textSavePhraseBtn').classList.remove('saved');
       showToast('Найдено в кэше (оффлайн)');
     } else {
       // Check phrasebook
       const pbResult = findInPhrasebook(text, sourceLang, targetLang);
       if (pbResult) {
-        document.getElementById('textResultText').textContent = pbResult;
-        document.getElementById('textResultText').dataset.lang = LANGS[targetLang].tts;
+        resultEl.textContent = pbResult;
+        resultEl.dataset.lang = LANGS[targetLang].tts;
+        resultEl.dataset.sourceLang = sourceLang;
+        resultEl.dataset.targetLang = targetLang;
+        resultEl.dataset.sourceText = text;
         document.getElementById('textResultLabel').textContent = LANGS[targetLang].name;
         document.getElementById('textResult').classList.add('visible');
+        document.getElementById('textSavePhraseBtn').classList.remove('saved');
         showToast('Найдено в разговорнике (оффлайн)');
       } else {
         showToast('Нет интернета. Перевод недоступен. Используйте разговорник.');
