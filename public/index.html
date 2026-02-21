@@ -1149,6 +1149,27 @@ body {
 .save-category-option { display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r12);border:none;background:none;color:var(--text);font-family:var(--font);font-size:15px;cursor:pointer;width:100%;text-align:left;transition:background 0.15s; }
 .save-category-option:hover { background:var(--surfaceAlt); }
 .save-category-option:active { background:var(--seaSoft); }
+
+/* ===== WHAT'S NEW MODAL ===== */
+.whatsnew-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center;padding:16px; }
+.whatsnew-overlay.visible { display:flex; }
+.whatsnew-card { background:var(--surface);border-radius:var(--r20);padding:24px 20px 20px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:slideUp 0.3s ease; }
+.whatsnew-badge { display:inline-block;background:var(--cta);color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:4px 10px;border-radius:20px;margin-bottom:12px; }
+.whatsnew-title { font-size:20px;font-weight:700;color:var(--text);margin-bottom:16px;line-height:1.3; }
+.whatsnew-section { margin-bottom:16px; }
+.whatsnew-section-title { font-size:15px;font-weight:600;color:var(--sea);margin-bottom:8px;display:flex;align-items:center;gap:6px; }
+.whatsnew-section-title svg { width:16px;height:16px;flex-shrink:0; }
+.whatsnew-list { list-style:none;padding:0;margin:0; }
+.whatsnew-list li { font-size:14px;color:var(--text);line-height:1.5;padding:3px 0 3px 20px;position:relative; }
+.whatsnew-list li::before { content:'';position:absolute;left:4px;top:11px;width:6px;height:6px;border-radius:50%;background:var(--terracotta); }
+.whatsnew-scenario { background:var(--surfaceAlt);border-radius:var(--r12);padding:12px 14px;margin-bottom:8px; }
+.whatsnew-scenario-title { font-size:13px;font-weight:600;color:var(--terracotta);margin-bottom:4px; }
+.whatsnew-scenario-text { font-size:13px;color:var(--muted);line-height:1.5; }
+.whatsnew-tip { background:var(--seaSoft);border-radius:var(--r12);padding:12px 14px;margin-top:16px;font-size:13px;color:var(--sea);line-height:1.5; }
+.whatsnew-tip strong { font-weight:600; }
+.whatsnew-btn { display:block;width:100%;margin-top:16px;padding:14px;border:none;border-radius:var(--r16);background:var(--cta);color:#fff;font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;box-shadow:var(--ctaShadow);transition:all 0.2s; }
+.whatsnew-btn:hover { filter:brightness(1.05); }
+.whatsnew-btn:active { transform:translateY(1px); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
@@ -4334,7 +4355,99 @@ loadHistory = async function() {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+
+// ===== WHAT'S NEW =====
+const WHATSNEW_VERSION = '2.1.0';
+
+function showWhatsNew() {
+  document.getElementById('whatsnewOverlay').classList.add('visible');
+}
+
+function closeWhatsNew() {
+  document.getElementById('whatsnewOverlay').classList.remove('visible');
+  localStorage.setItem('traveltalk_whatsnew_seen', WHATSNEW_VERSION);
+}
+
+function checkWhatsNew() {
+  const seen = localStorage.getItem('traveltalk_whatsnew_seen');
+  if (seen !== WHATSNEW_VERSION) {
+    setTimeout(showWhatsNew, 600);
+  }
+}
+
+// Show "What's New" after login
+const _origHideLoginScreen = hideLoginScreen;
+hideLoginScreen = function() {
+  _origHideLoginScreen();
+  checkWhatsNew();
+};
 </script>
+
+<!-- What's New modal -->
+<div class="whatsnew-overlay" id="whatsnewOverlay" onclick="if(event.target===this)closeWhatsNew()">
+  <div class="whatsnew-card">
+    <span class="whatsnew-badge">Что нового</span>
+    <div class="whatsnew-title">Офлайн-режим и сохранение фраз</div>
+
+    <div class="whatsnew-section">
+      <div class="whatsnew-section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Доступно офлайн
+      </div>
+      <ul class="whatsnew-list">
+        <li>Все встроенные фразы разговорника на 8 языках</li>
+        <li>Ваши сохранённые переводы и пользовательские фразы</li>
+        <li>Ранее загруженные результаты переводов из кэша</li>
+        <li>Полный интерфейс приложения</li>
+      </ul>
+    </div>
+
+    <div class="whatsnew-section">
+      <div class="whatsnew-section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        Сохранение фраз
+      </div>
+      <ul class="whatsnew-list">
+        <li>Любой перевод — в разговорник одним нажатием</li>
+        <li>Фразы мгновенно сохраняются на устройство</li>
+        <li>Автоматическая синхронизация при появлении интернета</li>
+      </ul>
+    </div>
+
+    <div class="whatsnew-section">
+      <div class="whatsnew-section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Сценарии использования
+      </div>
+      <div class="whatsnew-scenario">
+        <div class="whatsnew-scenario-title">В аэропорту без Wi-Fi</div>
+        <div class="whatsnew-scenario-text">Рейс задержали, нужно спросить у сотрудника, где зона ожидания. Открываете разговорник — все фразы из «Транспорт» и «Навигация» на месте, даже без сети.</div>
+      </div>
+      <div class="whatsnew-scenario">
+        <div class="whatsnew-scenario-title">В ресторане за границей</div>
+        <div class="whatsnew-scenario-text">Переводите меню, сохраняете удачные фразы — «Можно счёт», «Без глютена», «Что рекомендуете?». В следующем ресторане они уже в разговорнике, даже без интернета.</div>
+      </div>
+      <div class="whatsnew-scenario">
+        <div class="whatsnew-scenario-title">Подготовка к поездке дома</div>
+        <div class="whatsnew-scenario-text">Заранее переводите и сохраняете нужные фразы — адрес отеля, просьба вызвать такси, вопросы в аптеке. В поездке всё доступно офлайн.</div>
+      </div>
+      <div class="whatsnew-scenario">
+        <div class="whatsnew-scenario-title">В метро или подземном переходе</div>
+        <div class="whatsnew-scenario-text">Связь пропала, а нужно быстро подсказать попутчику дорогу на его языке. Разговорник работает без задержек — все данные уже на устройстве.</div>
+      </div>
+      <div class="whatsnew-scenario">
+        <div class="whatsnew-scenario-title">Роуминг и экономия трафика</div>
+        <div class="whatsnew-scenario-text">Мобильный интернет за границей дорогой. Сохранённые фразы не требуют подключения — пользуйтесь разговорником без лишних затрат.</div>
+      </div>
+    </div>
+
+    <div class="whatsnew-tip">
+      <strong>Совет:</strong> Перед поездкой откройте приложение с интернетом, чтобы все фразы загрузились на устройство. После этого разговорник будет доступен в любой точке мира — с сетью или без.
+    </div>
+
+    <button class="whatsnew-btn" onclick="closeWhatsNew()">Понятно!</button>
+  </div>
+</div>
 
 <!-- Save-to-phrasebook category modal -->
 <div class="save-category-overlay" id="saveCategoryOverlay" onclick="if(event.target===this)this.classList.remove('visible')">
