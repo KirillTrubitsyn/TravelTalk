@@ -1058,11 +1058,16 @@ body {
 .phrasebook-back:active { background:var(--surfaceAlt); }
 .phrasebook-topbar-title { flex:1;font-size:17px;font-weight:600;color:var(--text); }
 
-.phrasebook-categories { display:flex;gap:8px;padding:12px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0; }
-.phrasebook-categories::-webkit-scrollbar { display:none; }
-.phrasebook-cat-btn { padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 0.15s;display:flex;align-items:center;gap:6px; }
-.phrasebook-cat-btn:active { background:var(--surfaceAlt); }
-.phrasebook-cat-btn.active { background:var(--seaSoft);color:var(--sea);border-color:var(--sea); }
+/* Category selector dropdown */
+.pb-category-selector { position:relative;padding:12px 0; }
+.pb-category-selector-btn { display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--r12);border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;width:100%;justify-content:space-between; }
+.pb-category-selector-btn:hover { border-color:var(--sea);background:var(--seaSoft); }
+.pb-category-selector-btn svg { width:16px;height:16px;color:var(--muted);flex-shrink:0;transition:transform 0.2s; }
+.pb-main-category-popup { display:none;position:absolute;top:100%;left:0;right:0;margin-top:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r12);padding:4px;box-shadow:var(--shadowLg);z-index:50;max-height:320px;overflow-y:auto; }
+.pb-main-category-popup.visible { display:block; }
+.pb-main-category-option { display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r8);border:none;background:none;color:var(--text);font-family:var(--font);font-size:14px;cursor:pointer;width:100%;text-align:left;transition:background 0.1s; }
+.pb-main-category-option:hover { background:var(--surfaceAlt); }
+.pb-main-category-option.active { background:var(--seaSoft);color:var(--sea);font-weight:600; }
 
 .phrasebook-list { flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 0 20px;display:flex;flex-direction:column;gap:8px; }
 .phrasebook-item { background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);padding:14px;box-shadow:var(--shadowSm);cursor:pointer;transition:all 0.15s; }
@@ -1536,7 +1541,13 @@ body {
         </select>
       </div>
     </div>
-    <div class="phrasebook-categories" id="phrasebookCategories"></div>
+    <div class="pb-category-selector">
+      <button class="pb-category-selector-btn" id="pbCategorySelectorBtn" type="button" onclick="togglePbMainCategoryPopup()">
+        <span id="pbCategorySelectorText">Мои фразы</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="pb-main-category-popup" id="pbMainCategoryPopup"></div>
+    </div>
 
     <!-- Add phrase form (hidden by default) -->
     <div class="pb-add-form" id="pbAddForm">
@@ -3531,7 +3542,7 @@ const PHRASEBOOK = {
   }
 };
 
-let currentPhrasebookCategory = 'greetings';
+let currentPhrasebookCategory = 'custom';
 let pbSourceLang = 'ru';
 let pbTargetLang = 'en';
 
@@ -3566,11 +3577,12 @@ function togglePhrasebook() {
     main.style.display = 'none';
     hist.classList.remove('visible');
     pb.classList.add('visible');
+    // Always open on "Мои фразы"
+    currentPhrasebookCategory = 'custom';
     updatePhrasebookLangUI();
     renderPhrasebookCategories();
-    renderPhrasebookPhrases();
     if (!customPhrasesLoaded) loadCustomPhrases();
-    else renderCustomPhrases();
+    else renderPhrasebookView();
   }
 }
 
@@ -3585,8 +3597,7 @@ function updatePhrasebookLangs() {
   }
   updatePhrasebookLangUI();
   renderPhrasebookCategories();
-  renderPhrasebookPhrases();
-  renderCustomPhrases();
+  renderPhrasebookView();
   hideAddPhraseForm();
 }
 
@@ -3598,8 +3609,7 @@ function swapPhrasebookLangs() {
   document.getElementById('pbLangTo').value = pbTargetLang;
   updatePhrasebookLangUI();
   renderPhrasebookCategories();
-  renderPhrasebookPhrases();
-  renderCustomPhrases();
+  renderPhrasebookView();
 }
 
 function updatePhrasebookLangUI() {
@@ -3610,20 +3620,71 @@ function updatePhrasebookLangUI() {
 }
 
 function renderPhrasebookCategories() {
-  const container = document.getElementById('phrasebookCategories');
-  container.innerHTML = '';
+  // Update the selector button text to reflect current category
+  const btn = document.getElementById('pbCategorySelectorText');
+  if (currentPhrasebookCategory === 'custom') {
+    btn.textContent = 'Мои фразы';
+  } else {
+    const cat = PHRASEBOOK[currentPhrasebookCategory];
+    if (cat) {
+      const catNames = PB_CATEGORY_NAMES[currentPhrasebookCategory] || cat.name;
+      const label = catNames[pbSourceLang] || catNames.ru || catNames.en;
+      btn.textContent = cat.icon + ' ' + label;
+    }
+  }
+}
+
+function togglePbMainCategoryPopup() {
+  const popup = document.getElementById('pbMainCategoryPopup');
+  if (popup.classList.contains('visible')) {
+    popup.classList.remove('visible');
+    return;
+  }
+
+  popup.innerHTML = '';
+
+  // "Мои фразы" option first
+  const customOpt = document.createElement('button');
+  customOpt.className = 'pb-main-category-option' + (currentPhrasebookCategory === 'custom' ? ' active' : '');
+  customOpt.textContent = 'Мои фразы';
+  customOpt.onclick = () => selectPbMainCategory('custom', 'Мои фразы');
+  popup.appendChild(customOpt);
+
+  // All PHRASEBOOK categories
   for (const [key, cat] of Object.entries(PHRASEBOOK)) {
-    const btn = document.createElement('button');
-    btn.className = 'phrasebook-cat-btn' + (key === currentPhrasebookCategory ? ' active' : '');
+    const opt = document.createElement('button');
+    opt.className = 'pb-main-category-option' + (currentPhrasebookCategory === key ? ' active' : '');
     const catNames = PB_CATEGORY_NAMES[key] || cat.name;
-    const catLabel = catNames[pbSourceLang] || catNames.ru || catNames.en;
-    btn.textContent = cat.icon + ' ' + catLabel;
-    btn.onclick = () => {
-      currentPhrasebookCategory = key;
-      renderPhrasebookCategories();
-      renderPhrasebookPhrases();
-    };
-    container.appendChild(btn);
+    const label = catNames[pbSourceLang] || catNames.ru || catNames.en;
+    opt.textContent = cat.icon + ' ' + label;
+    opt.onclick = () => selectPbMainCategory(key, cat.icon + ' ' + label);
+    popup.appendChild(opt);
+  }
+
+  popup.classList.add('visible');
+}
+
+function selectPbMainCategory(key, label) {
+  currentPhrasebookCategory = key;
+  document.getElementById('pbCategorySelectorText').textContent = label;
+  document.getElementById('pbMainCategoryPopup').classList.remove('visible');
+  renderPhrasebookView();
+}
+
+function renderPhrasebookView() {
+  const isCustom = currentPhrasebookCategory === 'custom';
+  // Show/hide "Мои фразы" section and add button only in custom view
+  document.getElementById('pbCustomSection').style.display = '';
+  document.getElementById('pbAddBtn').style.display = '';
+
+  if (isCustom) {
+    renderCustomPhrases();
+    // Clear the built-in phrase list
+    document.getElementById('phrasebookList').innerHTML = '';
+  } else {
+    // Hide "Мои фразы" header section in category view
+    document.getElementById('pbCustomSection').style.display = 'none';
+    renderPhrasebookPhrases();
   }
 }
 
@@ -3667,7 +3728,7 @@ function renderPhrasebookPhrases() {
     container.appendChild(item);
   });
 
-  // Also render custom phrases assigned to this category
+  // Also render custom phrases assigned to this specific category
   const catCustom = customPhrases.filter(p =>
     p.category === currentPhrasebookCategory &&
     ((p.source_lang === src && p.target_lang === tgt) ||
@@ -3764,7 +3825,7 @@ let pbAddSelectedCategory = 'custom';
 async function loadCustomPhrases() {
   // Load from IndexedDB first (instant, works offline)
   customPhrases = await getCustomPhrasesFromDB();
-  renderCustomPhrases();
+  renderPhrasebookView();
 
   // Then sync from server if online
   if (!isOffline && authToken) {
@@ -3774,7 +3835,7 @@ async function loadCustomPhrases() {
         const data = await res.json();
         customPhrases = data.phrases || [];
         await saveCustomPhrasesToDB(customPhrases);
-        renderCustomPhrases();
+        renderPhrasebookView();
       }
     } catch (e) { /* offline or error — use cached */ }
   }
@@ -3921,12 +3982,19 @@ function selectPbCategory(key, label) {
   document.getElementById('pbAddCategoryPopup').classList.remove('visible');
 }
 
-// Close category popup on outside click
+// Close category popups on outside click
 document.addEventListener('click', function(e) {
-  const popup = document.getElementById('pbAddCategoryPopup');
-  const btn = document.getElementById('pbAddCategoryBtn');
-  if (popup && btn && !popup.contains(e.target) && !btn.contains(e.target)) {
-    popup.classList.remove('visible');
+  // Add-form category popup
+  const addPopup = document.getElementById('pbAddCategoryPopup');
+  const addBtn = document.getElementById('pbAddCategoryBtn');
+  if (addPopup && addBtn && !addPopup.contains(e.target) && !addBtn.contains(e.target)) {
+    addPopup.classList.remove('visible');
+  }
+  // Main category selector popup
+  const mainPopup = document.getElementById('pbMainCategoryPopup');
+  const mainBtn = document.getElementById('pbCategorySelectorBtn');
+  if (mainPopup && mainBtn && !mainPopup.contains(e.target) && !mainBtn.contains(e.target)) {
+    mainPopup.classList.remove('visible');
   }
 });
 
@@ -4000,8 +4068,7 @@ async function saveCustomPhrase() {
 
   customPhrases.unshift(phrase);
   await saveCustomPhrasesToDB(customPhrases);
-  renderCustomPhrases();
-  renderPhrasebookPhrases();
+  renderPhrasebookView();
   hideAddPhraseForm();
   showToast('Фраза сохранена');
 }
@@ -4022,8 +4089,7 @@ async function deleteCustomPhrase(id) {
 
   customPhrases = customPhrases.filter(p => p.id !== id);
   await saveCustomPhrasesToDB(customPhrases);
-  renderCustomPhrases();
-  renderPhrasebookPhrases();
+  renderPhrasebookView();
   showToast('Фраза удалена');
 }
 
