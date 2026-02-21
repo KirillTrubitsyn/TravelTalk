@@ -386,6 +386,52 @@ body {
 }
 .result-actions { display: flex; gap: 8px; margin-top: 4px; }
 
+/* ===== EXAMPLES SECTION ===== */
+.result-examples {
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.result-examples.visible { display: flex; }
+.result-examples-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.example-item {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.example-item + .example-item {
+  border-top: 1px dashed var(--border);
+}
+.example-source {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.example-source b {
+  color: var(--terracotta);
+  font-weight: 600;
+}
+.example-translation {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.example-translation b {
+  color: var(--sea);
+  font-weight: 600;
+}
+
 .icon-btn {
   width: 44px;
   height: 44px;
@@ -1221,6 +1267,10 @@ body {
       <div class="result-card" id="textResult">
         <div class="result-label" id="textResultLabel">Перевод</div>
         <div class="result-text" id="textResultText"></div>
+        <div class="result-examples" id="textExamples">
+          <div class="result-examples-title">Примеры использования</div>
+          <div id="textExamplesList"></div>
+        </div>
         <div class="result-actions">
           <button class="icon-btn" onclick="copyResult('textResultText')" title="Копировать">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -1291,6 +1341,10 @@ body {
         <div class="result-card" id="voiceResult">
           <div class="result-label">Перевод</div>
           <div class="result-text" id="voiceResultText"></div>
+          <div class="result-examples" id="voiceExamples">
+            <div class="result-examples-title">Примеры использования</div>
+            <div id="voiceExamplesList"></div>
+          </div>
           <div class="result-actions">
             <button class="icon-btn" onclick="copyResult('voiceResultText')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -1920,6 +1974,7 @@ function updateLangs() {
   if (voiceTranscript) { voiceTranscript.textContent = ''; voiceTranscript.classList.remove('visible'); }
   const voiceResult = document.getElementById('voiceResult');
   if (voiceResult) { voiceResult.classList.remove('visible'); }
+  renderExamples(null, 'voiceExamples', 'voiceExamplesList');
   updateDialogLangIndicator();
   updateVoiceLangIndicator();
 }
@@ -1992,22 +2047,56 @@ function getAutoTranslatePrompt() {
   return 'You are a professional translator. The user has a language pair: ' + getSourceName() + ' and ' + getTargetName() + '. Auto-detect the language of the input text. If it is ' + getSourceName() + ', translate to ' + getTargetName() + '. If it is ' + getTargetName() + ', translate to ' + getSourceName() + '. If it is neither, translate to ' + getTargetName() + '. IMPORTANT: Always provide a proper semantic translation of the meaning. Never transliterate or write words phonetically in another script. For example, German "Flughafen" must be translated to Russian "аэропорт", not transliterated as "Флюгхафен". CRITICAL: Translate the COMPLETE input text including ALL sentences as a single unit. Never skip, omit, or drop any sentence. Every sentence in the input must appear translated in the output. Reply ONLY with this JSON: {"from":"LANG_CODE","text":"TRANSLATED_TEXT"} where LANG_CODE is one of: ' + Object.keys(LANGS).join(', ') + '. No markdown, no explanation.';
 }
 
+function getTranslateWithExamplesPrompt() {
+  return 'You are a professional translator. The user has a language pair: ' + getSourceName() + ' and ' + getTargetName() + '. Auto-detect the language of the input text. If it is ' + getSourceName() + ', translate to ' + getTargetName() + '. If it is ' + getTargetName() + ', translate to ' + getSourceName() + '. If it is neither, translate to ' + getTargetName() + '. IMPORTANT: Always provide a proper semantic translation of the meaning. Never transliterate or write words phonetically in another script. Since the input is a short word or phrase, also provide 3 example sentences showing how this word/phrase is used in context. Each example must have the sentence in the source language and its translation. In each example, wrap the key word/phrase in <b> tags (both in source and translation). Reply ONLY with this JSON: {"from":"LANG_CODE","text":"TRANSLATED_TEXT","examples":[{"source":"sentence with <b>word</b>","translation":"translated sentence with <b>word</b>"},{"source":"...","translation":"..."},{"source":"...","translation":"..."}]} where LANG_CODE is one of: ' + Object.keys(LANGS).join(', ') + '. No markdown, no explanation outside JSON.';
+}
+
+function isShortText(text) {
+  const words = text.trim().split(/\s+/);
+  return words.length <= 3;
+}
+
 function parseTranslateResult(raw) {
   try {
     const json = JSON.parse(raw);
-    if (json.text) return { from: json.from, text: json.text };
+    if (json.text) return { from: json.from, text: json.text, examples: json.examples || null };
   } catch (e) {}
-  // Try to extract JSON from response that has extra text (e.g. thinking prefix)
-  // Match {"from":"...","text":"..."} or {"text":"...","from":"..."} precisely
+  // Try to extract full JSON with possible examples field
+  const fullMatch = raw.match(/\{[\s\S]*"text"\s*:\s*"[^"]*"[\s\S]*\}/);
+  if (fullMatch) {
+    try {
+      const json = JSON.parse(fullMatch[0]);
+      if (json.text) return { from: json.from, text: json.text, examples: json.examples || null };
+    } catch (e) {}
+  }
+  // Fallback: match simple {"from":"...","text":"..."} or {"text":"...","from":"..."} precisely
   const m = raw.match(/\{\s*"from"\s*:\s*"[^"]+"\s*,\s*"text"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"\s*\}/) ||
             raw.match(/\{\s*"text"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"\s*,\s*"from"\s*:\s*"[^"]+"\s*\}/);
   if (m) {
     try {
       const json = JSON.parse(m[0]);
-      if (json.text) return { from: json.from, text: json.text };
+      if (json.text) return { from: json.from, text: json.text, examples: null };
     } catch (e2) {}
   }
-  return { from: sourceLang, text: raw };
+  return { from: sourceLang, text: raw, examples: null };
+}
+
+function renderExamples(examples, containerId, listId) {
+  const container = document.getElementById(containerId);
+  const list = document.getElementById(listId);
+  if (!container || !list) return;
+  if (!examples || !Array.isArray(examples) || examples.length === 0) {
+    container.classList.remove('visible');
+    list.innerHTML = '';
+    return;
+  }
+  list.innerHTML = examples.map(function(ex) {
+    return '<div class="example-item">' +
+      '<div class="example-source">' + ex.source + '</div>' +
+      '<div class="example-translation">' + ex.translation + '</div>' +
+    '</div>';
+  }).join('');
+  container.classList.add('visible');
 }
 
 function getOtherLang(detectedLang) {
@@ -2034,10 +2123,12 @@ async function translateText() {
   currentAbortController = new AbortController();
 
   try {
+    const wantExamples = isShortText(text);
+    const prompt = wantExamples ? getTranslateWithExamplesPrompt() : getAutoTranslatePrompt();
     const raw = await callTranslate(
-      getAutoTranslatePrompt(),
+      prompt,
       text,
-      1024,
+      wantExamples ? 2048 : 1024,
       currentAbortController.signal
     );
     const r = parseTranslateResult(raw);
@@ -2051,6 +2142,7 @@ async function translateText() {
     document.getElementById('textResultLabel').textContent = LANGS[toLang].name;
     document.getElementById('textResult').classList.add('visible');
     document.getElementById('textSavePhraseBtn').classList.remove('saved');
+    renderExamples(r.examples, 'textExamples', 'textExamplesList');
     prefetchTts(r.text, LANGS[toLang].tts);
     saveTranslation('text', r.from, toLang, text, r.text);
   } catch (e) {
@@ -2069,6 +2161,7 @@ function clearTextForm() {
   document.getElementById('textInput').value = '';
   document.getElementById('textResultText').textContent = '';
   document.getElementById('textResult').classList.remove('visible');
+  renderExamples(null, 'textExamples', 'textExamplesList');
   updateCharCount();
   document.getElementById('textInput').focus();
 }
@@ -2225,7 +2318,9 @@ async function toggleVoiceRecording() {
     if (finalText.trim()) {
       currentAbortController = new AbortController();
       try {
-        const raw = await callTranslate(getAutoTranslatePrompt(), finalText.trim(), 1024, currentAbortController.signal);
+        const wantExamples = isShortText(finalText.trim());
+        const prompt = wantExamples ? getTranslateWithExamplesPrompt() : getAutoTranslatePrompt();
+        const raw = await callTranslate(prompt, finalText.trim(), wantExamples ? 2048 : 1024, currentAbortController.signal);
         const r = parseTranslateResult(raw);
         const toLang = getOtherLang(r.from);
         const voiceResultEl = document.getElementById('voiceResultText');
@@ -2236,6 +2331,7 @@ async function toggleVoiceRecording() {
         voiceResultEl.dataset.sourceText = finalText.trim();
         document.getElementById('voiceResult').classList.add('visible');
         document.getElementById('voiceSavePhraseBtn').classList.remove('saved');
+        renderExamples(r.examples, 'voiceExamples', 'voiceExamplesList');
         prefetchTts(r.text, LANGS[toLang].tts);
         saveTranslation('voice', r.from, toLang, finalText.trim(), r.text);
         flipVoiceLang();
