@@ -1140,6 +1140,15 @@ body {
 /* Save to phrasebook button states */
 .icon-btn.saved { color:var(--success);border-color:var(--success); }
 .icon-btn.saved:hover { background:rgba(16,185,129,0.08); }
+
+/* Save-to-phrasebook category modal */
+.save-category-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:flex-end;justify-content:center; }
+.save-category-overlay.visible { display:flex; }
+.save-category-sheet { background:var(--surface);border-radius:var(--r20) var(--r20) 0 0;padding:12px 16px 24px;width:100%;max-width:480px;max-height:60vh;overflow-y:auto;animation:slideUp 0.25s ease; }
+.save-category-sheet-title { font-size:15px;font-weight:600;color:var(--text);padding:8px 4px 12px;text-align:center; }
+.save-category-option { display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r12);border:none;background:none;color:var(--text);font-family:var(--font);font-size:15px;cursor:pointer;width:100%;text-align:left;transition:background 0.15s; }
+.save-category-option:hover { background:var(--surfaceAlt); }
+.save-category-option:active { background:var(--seaSoft); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
@@ -1211,13 +1220,13 @@ body {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       Текст
     </button>
-    <button class="tab" data-tab="photo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      Фото
-    </button>
     <button class="tab" data-tab="voice">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
       Голос
+    </button>
+    <button class="tab" data-tab="photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Фото
     </button>
     <button class="tab" data-tab="dialog">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1299,7 +1308,7 @@ body {
           <button class="icon-btn" onclick="speakResult('textResultText', this)" title="Озвучить">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
-          <button class="icon-btn" onclick="saveResultToPhrasebook('text')" title="В разговорник" id="textSavePhraseBtn">
+          <button class="icon-btn" onclick="showSaveCategoryModal('text')" title="В разговорник" id="textSavePhraseBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
           </button>
           <div style="flex:1"></div>
@@ -1373,7 +1382,7 @@ body {
             <button class="icon-btn" onclick="speakResult('voiceResultText', this)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
             </button>
-            <button class="icon-btn" onclick="saveResultToPhrasebook('voice')" title="В разговорник" id="voiceSavePhraseBtn">
+            <button class="icon-btn" onclick="showSaveCategoryModal('voice')" title="В разговорник" id="voiceSavePhraseBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
             </button>
           </div>
@@ -3699,36 +3708,7 @@ function renderPhrasebookPhrases() {
   const tgtTtsLang = LANGS[tgt] ? LANGS[tgt].tts : 'en-US';
   const srcTtsLang = LANGS[src] ? LANGS[src].tts : 'ru-RU';
 
-  cat.phrases.forEach(phrase => {
-    const srcText = phrase[src] || phrase.en || '';
-    const tgtText = phrase[tgt] || phrase.en || '';
-    if (!srcText || !tgtText) return;
-
-    const item = document.createElement('div');
-    item.className = 'phrasebook-item';
-
-    const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
-    const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
-
-    item.innerHTML =
-      '<div class="phrasebook-item-source">' + escapeHtml(srcText) + '</div>' +
-      '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
-      '<div class="phrasebook-item-actions">' +
-        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedSrc + '\', \'' + srcTtsLang + '\', this)" title="Озвучить оригинал" style="color:var(--terracotta)">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>' +
-        '</button>' +
-        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить перевод">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
-        '</button>' +
-        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать перевод">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
-        '</button>' +
-      '</div>';
-
-    container.appendChild(item);
-  });
-
-  // Also render custom phrases assigned to this specific category
+  // First: render custom phrases assigned to this category (at the top)
   const catCustom = customPhrases.filter(p =>
     p.category === currentPhrasebookCategory &&
     ((p.source_lang === src && p.target_lang === tgt) ||
@@ -3770,6 +3750,37 @@ function renderPhrasebookPhrases() {
 
     container.appendChild(item);
   });
+
+  // Then: render built-in phrases
+  cat.phrases.forEach(phrase => {
+    const srcText = phrase[src] || phrase.en || '';
+    const tgtText = phrase[tgt] || phrase.en || '';
+    if (!srcText || !tgtText) return;
+
+    const item = document.createElement('div');
+    item.className = 'phrasebook-item';
+
+    const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+
+    item.innerHTML =
+      '<div class="phrasebook-item-source">' + escapeHtml(srcText) + '</div>' +
+      '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
+      '<div class="phrasebook-item-actions">' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedSrc + '\', \'' + srcTtsLang + '\', this)" title="Озвучить оригинал" style="color:var(--terracotta)">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить перевод">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать перевод">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+      '</div>';
+
+    container.appendChild(item);
+  });
+
 }
 
 function speakPhrase(text, lang, btn) {
@@ -4094,7 +4105,33 @@ async function deleteCustomPhrase(id) {
 }
 
 // ===== SAVE RESULT TO PHRASEBOOK =====
-async function saveResultToPhrasebook(mode) {
+function showSaveCategoryModal(mode) {
+  const overlay = document.getElementById('saveCategoryOverlay');
+  const list = document.getElementById('saveCategoryList');
+  list.innerHTML = '';
+
+  // "Мои фразы" first
+  const customOpt = document.createElement('button');
+  customOpt.className = 'save-category-option';
+  customOpt.textContent = '📝 Мои фразы';
+  customOpt.onclick = () => { overlay.classList.remove('visible'); saveResultToPhrasebook(mode, 'custom'); };
+  list.appendChild(customOpt);
+
+  // All PHRASEBOOK categories
+  for (const [key, cat] of Object.entries(PHRASEBOOK)) {
+    const opt = document.createElement('button');
+    opt.className = 'save-category-option';
+    const catNames = PB_CATEGORY_NAMES[key] || cat.name;
+    const label = catNames[sourceLang] || catNames.ru || catNames.en;
+    opt.textContent = cat.icon + ' ' + label;
+    opt.onclick = () => { overlay.classList.remove('visible'); saveResultToPhrasebook(mode, key); };
+    list.appendChild(opt);
+  }
+
+  overlay.classList.add('visible');
+}
+
+async function saveResultToPhrasebook(mode, category) {
   let sourceText, translatedText, srcLang, tgtLang, btnId;
 
   if (mode === 'text') {
@@ -4130,7 +4167,7 @@ async function saveResultToPhrasebook(mode) {
   }
 
   const phrase = {
-    category: 'custom',
+    category: category || 'custom',
     source_lang: srcLang,
     target_lang: tgtLang,
     source_text: sourceText,
@@ -4298,5 +4335,14 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 </script>
+
+<!-- Save-to-phrasebook category modal -->
+<div class="save-category-overlay" id="saveCategoryOverlay" onclick="if(event.target===this)this.classList.remove('visible')">
+  <div class="save-category-sheet">
+    <div class="save-category-sheet-title">Сохранить в раздел</div>
+    <div id="saveCategoryList"></div>
+  </div>
+</div>
+
 </body>
 </html>
