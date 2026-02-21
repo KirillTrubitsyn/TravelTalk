@@ -126,6 +126,28 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .activity-cell.l3 { background:rgba(28,140,122,0.6); }
 .activity-cell.l4 { background:rgba(28,140,122,0.85); }
 
+/* Edit form inline */
+.edit-form { background:var(--surfaceAlt); border-radius:var(--r12); padding:14px; margin-top:10px; }
+.edit-form .form-row { margin-bottom:8px; }
+.edit-form .form-row:last-of-type { margin-bottom:0; }
+.edit-form label { font-size:12px; color:var(--muted); display:block; margin-bottom:3px; }
+.edit-form input { width:100%; }
+
+/* User cards */
+.user-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r16); padding:16px; margin-bottom:10px; transition:box-shadow 0.2s; }
+.user-card:hover { box-shadow:0 4px 12px rgba(31,41,55,0.06); }
+.user-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.user-card-name { font-size:15px; font-weight:600; color:var(--text); }
+.user-card-code { font-size:12px; color:var(--terracotta); font-family:monospace; font-weight:600; }
+.user-card-meta { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); }
+.user-card-meta span { display:flex; align-items:center; gap:4px; }
+.user-card-actions { display:flex; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+
+/* Search */
+.search-wrap { margin-bottom:14px; }
+.search-wrap input { width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--r12); font-family:var(--font); font-size:14px; background:var(--surface); outline:none; }
+.search-wrap input:focus { border-color:var(--terracotta); box-shadow:0 0 0 3px rgba(242,106,61,0.1); }
+
 @media (max-width: 500px) {
   .stats-grid { grid-template-columns:repeat(2, 1fr); }
   .form-row { flex-direction:column; }
@@ -169,6 +191,10 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Коды
       </button>
+      <button class="nav-tab" onclick="switchTab('users')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Пользователи
+      </button>
       <button class="nav-tab" onclick="switchTab('stats')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Статистика
@@ -203,6 +229,15 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 
       <!-- Codes List -->
       <div id="codesList"><div class="empty">Загрузка...</div></div>
+    </div>
+
+    <!-- Users Tab -->
+    <div id="tabUsers" style="display:none">
+      <h2 style="font-size:16px;font-weight:600;margin-bottom:14px">Пользователи</h2>
+      <div class="search-wrap">
+        <input id="userSearch" placeholder="Поиск по имени, коду или устройству..." oninput="filterUsers()">
+      </div>
+      <div id="usersList"><div class="empty">Загрузка...</div></div>
     </div>
 
     <!-- Stats Tab -->
@@ -324,21 +359,28 @@ function showDashboard() {
 }
 
 // ===== TABS =====
+const tabs = ['codes', 'users', 'stats'];
 function switchTab(tab) {
   document.querySelectorAll('.nav-tab').forEach((t, i) => {
-    t.classList.toggle('active', (tab === 'codes' && i === 0) || (tab === 'stats' && i === 1));
+    t.classList.toggle('active', tabs[i] === tab);
   });
-  document.getElementById('tabCodes').style.display = tab === 'codes' ? 'block' : 'none';
-  document.getElementById('tabStats').style.display = tab === 'stats' ? 'block' : 'none';
+  tabs.forEach(t => {
+    const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
   if (tab === 'stats') loadStats();
+  if (tab === 'users') loadUsers();
 }
 
 function refreshAll() {
   loadCodes();
+  if (document.getElementById('tabUsers').style.display !== 'none') loadUsers();
   if (document.getElementById('tabStats').style.display !== 'none') loadStats();
 }
 
 // ===== CODES =====
+let codesData = [];
+
 async function loadCodes() {
   const list = document.getElementById('codesList');
   list.innerHTML = '<div class="empty">Загрузка...</div>';
@@ -349,57 +391,149 @@ async function loadCodes() {
     const data = await res.json();
 
     if (!data.codes || data.codes.length === 0) {
+      codesData = [];
       list.innerHTML = '<div class="empty">Нет инвайт-кодов. Создайте первый!</div>';
       return;
     }
 
-    list.innerHTML = '';
-    data.codes.forEach(c => {
-      const users = c.users || [];
-      const usersHtml = users.length
-        ? users.map(u =>
-            '<div class="code-user"><span class="code-user-name">' + esc(u.name) + '</span><span class="code-user-device">' + (u.device_id || '').substring(0, 12) + '...</span></div>'
-          ).join('')
-        : '<div style="font-size:12px;color:var(--muted);padding:4px 0">Нет подключённых устройств</div>';
-
-      const lastUsed = c.last_used_at
-        ? new Date(c.last_used_at).toLocaleString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
-        : 'никогда';
-      const created = new Date(c.created_at).toLocaleString('ru-RU', { day:'numeric', month:'short', year:'numeric' });
-
-      const card = document.createElement('div');
-      card.className = 'code-card';
-      card.innerHTML = `
-        <div class="code-header">
-          <div>
-            <div class="code-value">${esc(c.code)}</div>
-            <div class="code-name">${esc(c.name)}</div>
-            ${c.description ? '<div class="code-desc">' + esc(c.description) + '</div>' : ''}
-          </div>
-          <span class="code-status ${c.is_active ? 'active' : 'inactive'}">${c.is_active ? 'Активен' : 'Отключён'}</span>
-        </div>
-        <div class="code-meta">
-          <span>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-            ${users.length}/${c.device_limit}
-          </span>
-          <span>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
-            ${c.uses_remaining === null ? '∞' : c.uses_remaining}
-          </span>
-          <span>Создан: ${created}</span>
-          <span>Посл. вход: ${lastUsed}</span>
-        </div>
-        <div class="code-users">${usersHtml}</div>
-        <div class="code-actions">
-          <button class="btn btn-sm btn-sea" onclick="copyCode('${esc(c.code)}')" title="Скопировать код">Копировать</button>
-          <button class="btn btn-sm" onclick="toggleActive('${c.id}', ${!c.is_active})">${c.is_active ? 'Отключить' : 'Включить'}</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteCode('${c.id}', '${esc(c.code)}')">Удалить</button>
-        </div>`;
-      list.appendChild(card);
-    });
+    codesData = data.codes;
+    renderCodes();
   } catch (e) {
     list.innerHTML = '<div class="empty">Ошибка: ' + e.message + '</div>';
+  }
+}
+
+function renderCodes() {
+  const list = document.getElementById('codesList');
+  list.innerHTML = '';
+
+  codesData.forEach(c => {
+    const users = c.users || [];
+    const usersHtml = users.length
+      ? users.map(u =>
+          `<div class="code-user">
+            <span class="code-user-name">${esc(u.name)}</span>
+            <span style="display:flex;align-items:center;gap:6px">
+              <span class="code-user-device">${(u.device_id || '').substring(0, 12)}...</span>
+              <button class="btn btn-sm btn-danger" onclick="deleteDevice('${u.id}', '${esc(u.name)}')" title="Удалить устройство" style="padding:2px 6px;font-size:11px">✕</button>
+            </span>
+          </div>`
+        ).join('')
+      : '<div style="font-size:12px;color:var(--muted);padding:4px 0">Нет подключённых устройств</div>';
+
+    const lastUsed = c.last_used_at
+      ? new Date(c.last_used_at).toLocaleString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+      : 'никогда';
+    const created = new Date(c.created_at).toLocaleString('ru-RU', { day:'numeric', month:'short', year:'numeric' });
+
+    const card = document.createElement('div');
+    card.className = 'code-card';
+    card.id = 'code-' + c.id;
+    card.innerHTML = `
+      <div class="code-header">
+        <div>
+          <div class="code-value">${esc(c.code)}</div>
+          <div class="code-name">${esc(c.name)}</div>
+          ${c.description ? '<div class="code-desc">' + esc(c.description) + '</div>' : ''}
+        </div>
+        <span class="code-status ${c.is_active ? 'active' : 'inactive'}">${c.is_active ? 'Активен' : 'Отключён'}</span>
+      </div>
+      <div class="code-meta">
+        <span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          ${users.length}/${c.device_limit}
+        </span>
+        <span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          ${c.uses_remaining === null ? '∞' : c.uses_remaining}
+        </span>
+        <span>Создан: ${created}</span>
+        <span>Посл. вход: ${lastUsed}</span>
+      </div>
+      <div class="code-users">${usersHtml}</div>
+      <div class="code-actions">
+        <button class="btn btn-sm btn-sea" onclick="copyCode('${esc(c.code)}')" title="Скопировать код">Копировать</button>
+        <button class="btn btn-sm" onclick="editCode('${c.id}')">Редактировать</button>
+        <button class="btn btn-sm" onclick="toggleActive('${c.id}', ${!c.is_active})">${c.is_active ? 'Отключить' : 'Включить'}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteCode('${c.id}', '${esc(c.code)}')">Удалить</button>
+      </div>
+      <div class="edit-form" id="editForm-${c.id}" style="display:none">
+        <div class="form-row">
+          <div style="flex:1"><label>Имя</label><input id="editName-${c.id}" value="${esc(c.name)}"></div>
+        </div>
+        <div class="form-row">
+          <div style="flex:1"><label>Описание</label><input id="editDesc-${c.id}" value="${esc(c.description || '')}"></div>
+        </div>
+        <div class="form-row">
+          <div style="flex:1;max-width:160px"><label>Лимит устройств</label><input id="editDeviceLimit-${c.id}" type="number" min="1" max="100" value="${c.device_limit}"></div>
+          <div style="flex:1;max-width:160px"><label>Осталось использований</label><input id="editUsesRemaining-${c.id}" type="number" min="0" placeholder="Пусто = безлимит" value="${c.uses_remaining === null ? '' : c.uses_remaining}"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary btn-sm" onclick="saveCodeEdit('${c.id}')">Сохранить</button>
+          <button class="btn btn-sm" onclick="cancelCodeEdit('${c.id}')">Отмена</button>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function editCode(id) {
+  // Hide all other edit forms
+  document.querySelectorAll('.edit-form').forEach(f => f.style.display = 'none');
+  document.getElementById('editForm-' + id).style.display = 'block';
+}
+
+function cancelCodeEdit(id) {
+  document.getElementById('editForm-' + id).style.display = 'none';
+}
+
+async function saveCodeEdit(id) {
+  const name = document.getElementById('editName-' + id).value.trim();
+  if (!name) { alert('Имя не может быть пустым'); return; }
+
+  const desc = document.getElementById('editDesc-' + id).value.trim();
+  const deviceLimit = parseInt(document.getElementById('editDeviceLimit-' + id).value) || 3;
+  const usesVal = document.getElementById('editUsesRemaining-' + id).value.trim();
+  const usesRemaining = usesVal === '' ? null : parseInt(usesVal);
+
+  try {
+    const res = await fetch('/api/admin/codes', {
+      method: 'PATCH',
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        id,
+        name,
+        description: desc,
+        device_limit: deviceLimit,
+        uses_remaining: usesRemaining
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || 'Ошибка сохранения');
+      return;
+    }
+    loadCodes();
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+  }
+}
+
+async function deleteDevice(userId, userName) {
+  if (!confirm('Удалить устройство пользователя ' + userName + '?')) return;
+  try {
+    const res = await fetch('/api/admin/users?id=' + userId, {
+      method: 'DELETE',
+      headers: apiHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || 'Ошибка удаления');
+      return;
+    }
+    loadCodes();
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
   }
 }
 
@@ -469,6 +603,140 @@ async function deleteCode(id, code) {
 
 function copyCode(code) {
   navigator.clipboard.writeText(code).catch(() => {});
+}
+
+// ===== USERS =====
+let usersData = [];
+
+async function loadUsers() {
+  const list = document.getElementById('usersList');
+  list.innerHTML = '<div class="empty">Загрузка...</div>';
+
+  try {
+    const res = await fetch('/api/admin/users', { headers: apiHeaders() });
+    if (!res.ok) { list.innerHTML = '<div class="empty">Ошибка загрузки</div>'; return; }
+    const data = await res.json();
+
+    if (!data.users || data.users.length === 0) {
+      usersData = [];
+      list.innerHTML = '<div class="empty">Нет пользователей</div>';
+      return;
+    }
+
+    usersData = data.users;
+    renderUsers();
+  } catch (e) {
+    list.innerHTML = '<div class="empty">Ошибка: ' + e.message + '</div>';
+  }
+}
+
+function filterUsers() {
+  renderUsers();
+}
+
+function renderUsers() {
+  const list = document.getElementById('usersList');
+  const query = (document.getElementById('userSearch').value || '').toLowerCase().trim();
+
+  const filtered = query
+    ? usersData.filter(u =>
+        (u.name || '').toLowerCase().includes(query) ||
+        (u.device_id || '').toLowerCase().includes(query) ||
+        (u.invite_codes?.code || '').toLowerCase().includes(query) ||
+        (u.invite_codes?.name || '').toLowerCase().includes(query)
+      )
+    : usersData;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty">' + (query ? 'Ничего не найдено' : 'Нет пользователей') + '</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  filtered.forEach(u => {
+    const created = new Date(u.created_at).toLocaleString('ru-RU', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const codeStr = u.invite_codes ? u.invite_codes.code : '—';
+
+    const card = document.createElement('div');
+    card.className = 'user-card';
+    card.id = 'user-' + u.id;
+    card.innerHTML = `
+      <div class="user-card-header">
+        <div>
+          <div class="user-card-name" id="userNameDisplay-${u.id}">${esc(u.name)}</div>
+          <div class="user-card-code">${esc(codeStr)}</div>
+        </div>
+      </div>
+      <div class="user-card-meta">
+        <span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          ${esc((u.device_id || '').substring(0, 20))}...
+        </span>
+        <span>Создан: ${created}</span>
+      </div>
+      <div class="edit-form" id="userEditForm-${u.id}" style="display:none">
+        <div class="form-row">
+          <div style="flex:1"><label>Имя пользователя</label><input id="userEditName-${u.id}" value="${esc(u.name)}"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary btn-sm" onclick="saveUserEdit('${u.id}')">Сохранить</button>
+          <button class="btn btn-sm" onclick="cancelUserEdit('${u.id}')">Отмена</button>
+        </div>
+      </div>
+      <div class="user-card-actions">
+        <button class="btn btn-sm" onclick="editUser('${u.id}')">Редактировать</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}', '${esc(u.name)}')">Удалить</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function editUser(id) {
+  document.querySelectorAll('.user-card .edit-form').forEach(f => f.style.display = 'none');
+  document.getElementById('userEditForm-' + id).style.display = 'block';
+}
+
+function cancelUserEdit(id) {
+  document.getElementById('userEditForm-' + id).style.display = 'none';
+}
+
+async function saveUserEdit(id) {
+  const name = document.getElementById('userEditName-' + id).value.trim();
+  if (!name) { alert('Имя не может быть пустым'); return; }
+
+  try {
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: apiHeaders(),
+      body: JSON.stringify({ id, name })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || 'Ошибка сохранения');
+      return;
+    }
+    loadUsers();
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+  }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm('Удалить пользователя ' + name + ' и все его сессии?')) return;
+  try {
+    const res = await fetch('/api/admin/users?id=' + id, {
+      method: 'DELETE',
+      headers: apiHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || 'Ошибка удаления');
+      return;
+    }
+    loadUsers();
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+  }
 }
 
 // ===== STATS =====
