@@ -1116,6 +1116,22 @@ body {
 .pb-item-delete svg { width:14px;height:14px; }
 .pb-custom-badge { font-size:10px;color:var(--terracotta);background:rgba(242,106,61,0.1);padding:1px 6px;border-radius:6px;font-weight:600; }
 
+/* Auto-translate hint in add form */
+.pb-add-translate-wrap { position:relative; }
+.pb-add-translate-hint { font-size:11px;color:var(--muted);margin-top:2px;min-height:14px;padding-left:2px; }
+
+/* Category selector in add form */
+.pb-add-category-row { display:flex;align-items:center;gap:8px;position:relative; }
+.pb-add-category-label { font-size:12px;color:var(--muted);white-space:nowrap; }
+.pb-add-category-btn { display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:var(--r12);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;cursor:pointer;transition:all 0.15s; }
+.pb-add-category-btn:hover { border-color:var(--sea);background:var(--seaSoft); }
+.pb-add-category-btn svg { width:12px;height:12px;color:var(--muted);transition:transform 0.2s; }
+.pb-add-category-popup { display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r12);padding:4px;box-shadow:var(--shadowLg);z-index:50;max-height:240px;overflow-y:auto; }
+.pb-add-category-popup.visible { display:block; }
+.pb-add-category-option { display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--r8);border:none;background:none;color:var(--text);font-family:var(--font);font-size:13px;cursor:pointer;width:100%;text-align:left;transition:background 0.1s; }
+.pb-add-category-option:hover { background:var(--surfaceAlt); }
+.pb-add-category-option.active { background:var(--seaSoft);color:var(--sea);font-weight:500; }
+
 /* Save to phrasebook button states */
 .icon-btn.saved { color:var(--success);border-color:var(--success); }
 .icon-btn.saved:hover { background:rgba(16,185,129,0.08); }
@@ -1525,8 +1541,19 @@ body {
     <!-- Add phrase form (hidden by default) -->
     <div class="pb-add-form" id="pbAddForm">
       <div class="pb-add-form-title">Новая фраза</div>
-      <input class="pb-add-input" id="pbAddSource" placeholder="Фраза на исходном языке">
-      <input class="pb-add-input" id="pbAddTarget" placeholder="Перевод">
+      <input class="pb-add-input" id="pbAddSource" placeholder="Фраза на исходном языке" oninput="onPbAddSourceInput()">
+      <div class="pb-add-translate-wrap">
+        <input class="pb-add-input" id="pbAddTarget" placeholder="Перевод" oninput="this.dataset.manualEdit='1'">
+        <div class="pb-add-translate-hint" id="pbAddTranslateHint"></div>
+      </div>
+      <div class="pb-add-category-row">
+        <span class="pb-add-category-label">Раздел:</span>
+        <button class="pb-add-category-btn" id="pbAddCategoryBtn" type="button" onclick="togglePbCategoryPopup()">
+          <span id="pbAddCategoryText">Мои фразы</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="pb-add-category-popup" id="pbAddCategoryPopup"></div>
+      </div>
       <div class="pb-add-form-actions">
         <button class="btn btn-primary" onclick="saveCustomPhrase()" style="flex:1">Сохранить</button>
         <button class="btn btn-ghost" onclick="hideAddPhraseForm()" style="flex:none;padding:8px 16px">Отмена</button>
@@ -3608,6 +3635,8 @@ function renderPhrasebookPhrases() {
 
   const src = pbSourceLang;
   const tgt = pbTargetLang;
+  const tgtTtsLang = LANGS[tgt] ? LANGS[tgt].tts : 'en-US';
+  const srcTtsLang = LANGS[src] ? LANGS[src].tts : 'ru-RU';
 
   cat.phrases.forEach(phrase => {
     const srcText = phrase[src] || phrase.en || '';
@@ -3619,8 +3648,6 @@ function renderPhrasebookPhrases() {
 
     const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
     const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
-    const tgtTtsLang = LANGS[tgt] ? LANGS[tgt].tts : 'en-US';
-    const srcTtsLang = LANGS[src] ? LANGS[src].tts : 'ru-RU';
 
     item.innerHTML =
       '<div class="phrasebook-item-source">' + escapeHtml(srcText) + '</div>' +
@@ -3634,6 +3661,49 @@ function renderPhrasebookPhrases() {
         '</button>' +
         '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать перевод">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+      '</div>';
+
+    container.appendChild(item);
+  });
+
+  // Also render custom phrases assigned to this category
+  const catCustom = customPhrases.filter(p =>
+    p.category === currentPhrasebookCategory &&
+    ((p.source_lang === src && p.target_lang === tgt) ||
+     (p.source_lang === tgt && p.target_lang === src))
+  );
+
+  catCustom.forEach(p => {
+    let srcText, tgtText;
+    if (p.source_lang === src) { srcText = p.source_text; tgtText = p.target_text; }
+    else { srcText = p.target_text; tgtText = p.source_text; }
+
+    const item = document.createElement('div');
+    item.className = 'phrasebook-item';
+    const escapedTgt = tgtText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const escapedSrc = srcText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    const phraseId = (p.id || '').replace(/'/g, '');
+
+    item.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+        '<div style="flex:1">' +
+          '<div class="phrasebook-item-source">' + escapeHtml(srcText) + ' <span class="pb-custom-badge">моя</span></div>' +
+          '<div class="phrasebook-item-target">' + escapeHtml(tgtText) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="phrasebook-item-actions">' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedSrc + '\', \'' + srcTtsLang + '\', this)" title="Озвучить оригинал" style="color:var(--terracotta)">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="speakPhrase(\'' + escapedTgt + '\', \'' + tgtTtsLang + '\', this)" title="Озвучить перевод">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="copyPhrase(\'' + escapedTgt + '\')" title="Копировать">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        '</button>' +
+        '<button class="pb-item-delete" onclick="deleteCustomPhrase(\'' + phraseId + '\')" title="Удалить">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
         '</button>' +
       '</div>';
 
@@ -3688,6 +3758,8 @@ function copyPhrase(text) {
 // ===== CUSTOM PHRASES =====
 let customPhrases = [];
 let customPhrasesLoaded = false;
+let pbAddTranslateTimer = null;
+let pbAddSelectedCategory = 'custom';
 
 async function loadCustomPhrases() {
   // Load from IndexedDB first (instant, works offline)
@@ -3714,10 +3786,11 @@ function renderCustomPhrases() {
   const list = document.getElementById('pbCustomList');
   const countEl = document.getElementById('pbCustomCount');
 
-  // Filter phrases that match current phrasebook language pair (in either direction)
+  // Filter phrases: only "Мои фразы" (custom category) matching current language pair
   const filtered = customPhrases.filter(p =>
-    (p.source_lang === pbSourceLang && p.target_lang === pbTargetLang) ||
-    (p.source_lang === pbTargetLang && p.target_lang === pbSourceLang)
+    (p.category === 'custom' || !p.category) &&
+    ((p.source_lang === pbSourceLang && p.target_lang === pbTargetLang) ||
+    (p.source_lang === pbTargetLang && p.target_lang === pbSourceLang))
   );
 
   countEl.textContent = filtered.length;
@@ -3777,6 +3850,86 @@ function renderCustomPhrases() {
   });
 }
 
+// Auto-translate source phrase with debounce
+function onPbAddSourceInput() {
+  const tgtInput = document.getElementById('pbAddTarget');
+  const hint = document.getElementById('pbAddTranslateHint');
+  clearTimeout(pbAddTranslateTimer);
+
+  // If user manually edited target, don't overwrite
+  if (tgtInput.dataset.manualEdit) {
+    if (hint) hint.textContent = '';
+    return;
+  }
+
+  const text = document.getElementById('pbAddSource').value.trim();
+  if (!text) {
+    tgtInput.value = '';
+    if (hint) hint.textContent = '';
+    return;
+  }
+
+  if (hint) hint.textContent = 'Перевожу...';
+  pbAddTranslateTimer = setTimeout(async () => {
+    try {
+      const prompt = 'You are a translator. Translate from ' + (LANGS[pbSourceLang] ? LANGS[pbSourceLang].name : 'source') + ' to ' + (LANGS[pbTargetLang] ? LANGS[pbTargetLang].name : 'target') + '. Reply ONLY with the translation, nothing else. No quotes, no explanation.';
+      const result = await callTranslate(prompt, text, 256);
+      if (result && !tgtInput.dataset.manualEdit) {
+        tgtInput.value = result.trim().replace(/^["']|["']$/g, '');
+      }
+      if (hint) hint.textContent = '';
+    } catch (e) {
+      if (hint) hint.textContent = '';
+    }
+  }, 700);
+}
+
+// Category popup for add phrase form
+function togglePbCategoryPopup() {
+  const popup = document.getElementById('pbAddCategoryPopup');
+  if (popup.classList.contains('visible')) {
+    popup.classList.remove('visible');
+    return;
+  }
+
+  popup.innerHTML = '';
+
+  // "Мои фразы" first
+  const customOpt = document.createElement('button');
+  customOpt.className = 'pb-add-category-option' + (pbAddSelectedCategory === 'custom' ? ' active' : '');
+  customOpt.textContent = 'Мои фразы';
+  customOpt.onclick = () => selectPbCategory('custom', 'Мои фразы');
+  popup.appendChild(customOpt);
+
+  // All PHRASEBOOK categories
+  for (const [key, cat] of Object.entries(PHRASEBOOK)) {
+    const opt = document.createElement('button');
+    opt.className = 'pb-add-category-option' + (pbAddSelectedCategory === key ? ' active' : '');
+    const catNames = PB_CATEGORY_NAMES[key] || cat.name;
+    const label = catNames[pbSourceLang] || catNames.ru || catNames.en;
+    opt.textContent = cat.icon + ' ' + label;
+    opt.onclick = () => selectPbCategory(key, cat.icon + ' ' + label);
+    popup.appendChild(opt);
+  }
+
+  popup.classList.add('visible');
+}
+
+function selectPbCategory(key, label) {
+  pbAddSelectedCategory = key;
+  document.getElementById('pbAddCategoryText').textContent = label;
+  document.getElementById('pbAddCategoryPopup').classList.remove('visible');
+}
+
+// Close category popup on outside click
+document.addEventListener('click', function(e) {
+  const popup = document.getElementById('pbAddCategoryPopup');
+  const btn = document.getElementById('pbAddCategoryBtn');
+  if (popup && btn && !popup.contains(e.target) && !btn.contains(e.target)) {
+    popup.classList.remove('visible');
+  }
+});
+
 function showAddPhraseForm() {
   const form = document.getElementById('pbAddForm');
   const srcInput = document.getElementById('pbAddSource');
@@ -3789,12 +3942,20 @@ function showAddPhraseForm() {
   tgtInput.placeholder = LANGS[pbTargetLang] ? LANGS[pbTargetLang].name : 'Перевод';
   srcInput.value = '';
   tgtInput.value = '';
+  delete tgtInput.dataset.manualEdit;
+  document.getElementById('pbAddTranslateHint').textContent = '';
+  // Reset category to default
+  pbAddSelectedCategory = 'custom';
+  document.getElementById('pbAddCategoryText').textContent = 'Мои фразы';
+  document.getElementById('pbAddCategoryPopup').classList.remove('visible');
   srcInput.focus();
 }
 
 function hideAddPhraseForm() {
   document.getElementById('pbAddForm').classList.remove('visible');
   document.getElementById('pbAddBtn').style.display = '';
+  clearTimeout(pbAddTranslateTimer);
+  document.getElementById('pbAddCategoryPopup').classList.remove('visible');
 }
 
 async function saveCustomPhrase() {
@@ -3807,7 +3968,7 @@ async function saveCustomPhrase() {
   }
 
   const phrase = {
-    category: 'custom',
+    category: pbAddSelectedCategory,
     source_lang: pbSourceLang,
     target_lang: pbTargetLang,
     source_text: srcText,
@@ -3840,6 +4001,7 @@ async function saveCustomPhrase() {
   customPhrases.unshift(phrase);
   await saveCustomPhrasesToDB(customPhrases);
   renderCustomPhrases();
+  renderPhrasebookPhrases();
   hideAddPhraseForm();
   showToast('Фраза сохранена');
 }
@@ -3861,6 +4023,7 @@ async function deleteCustomPhrase(id) {
   customPhrases = customPhrases.filter(p => p.id !== id);
   await saveCustomPhrasesToDB(customPhrases);
   renderCustomPhrases();
+  renderPhrasebookPhrases();
   showToast('Фраза удалена');
 }
 
