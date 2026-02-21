@@ -1179,6 +1179,8 @@ body {
 }
 .pronunciation-word.correct { background:rgba(16,185,129,0.15);color:#059669; }
 .pronunciation-word.wrong { background:rgba(239,68,68,0.15);color:#dc2626;text-decoration:line-through; }
+.pronunciation-word.mispronounced { background:rgba(245,158,11,0.15);color:#d97706; }
+.pronunciation-word.omitted { background:rgba(239,68,68,0.15);color:#dc2626;text-decoration:line-through; }
 .pronunciation-word.extra { background:rgba(107,114,128,0.12);color:var(--muted);font-style:italic; }
 .pronunciation-word.spoken-correct { background:rgba(16,185,129,0.10);color:#059669; }
 .pronunciation-actions { display:flex;gap:8px;justify-content:center;flex-wrap:wrap; }
@@ -1192,6 +1194,16 @@ body {
 .pronunciation-action-btn.primary:hover { opacity:0.9; }
 .pronunciation-tips { font-size:14px;line-height:1.6;color:var(--text);background:var(--surfaceAlt);border-radius:var(--r12);padding:14px;display:none; }
 .pronunciation-tips.visible { display:block; }
+.azure-subscores { display:flex;gap:12px;justify-content:center;margin-top:8px;flex-wrap:wrap; }
+.azure-subscore { display:flex;flex-direction:column;align-items:center;gap:2px; }
+.azure-subscore-val { font-size:18px;font-weight:700;color:var(--text); }
+.azure-subscore-lbl { font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px; }
+.word-accuracy { font-size:10px;color:var(--muted);margin-left:1px; }
+.phoneme-details { width:100%;margin-top:10px;font-size:13px;line-height:1.7; }
+.phoneme-row { margin-bottom:4px; }
+.phoneme-word { font-weight:600;color:#dc2626; }
+.phoneme-chip { display:inline-block;padding:1px 6px;border-radius:4px;font-size:12px;font-weight:500;margin:1px; }
+.phoneme-chip small { font-size:10px;opacity:0.8; }
 .pronunciation-tips-loading { text-align:center;color:var(--muted);padding:12px; }
 .pronunciation-countdown { font-size:48px;font-weight:700;color:var(--terracotta);text-align:center;animation:countdownPop 0.5s ease; }
 @keyframes countdownPop { 0%{transform:scale(0.5);opacity:0} 50%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
@@ -3055,6 +3067,105 @@ let pronunciationCountdownTimer = null;
 let pronunciationPlaybackRate = 1.0;
 let pronunciationTtsBuffer = null;
 let pronunciationSpeedSource = null;
+let pronunciationPcmChunks = [];
+let pronunciationAudioCtx = null;
+let pronunciationScriptNode = null;
+let pronunciationFinishFn = null; // reference to current finishRecording closure
+
+// Azure Pronunciation Assessment supported locales
+const AZURE_PRON_LANGS = new Set([
+  'ar-SA','ca-ES','zh-HK','zh-CN','zh-TW','da-DK','nl-NL',
+  'en-AU','en-CA','en-IN','en-GB','en-US','fi-FI','fr-CA','fr-FR',
+  'de-DE','hi-IN','it-IT','ja-JP','ko-KR','ms-MY','nb-NO','pl-PL',
+  'pt-BR','pt-PT','ru-RU','es-MX','es-ES','sv-SE','ta-IN','th-TH',
+  'tr-TR','vi-VN'
+]);
+
+function isAzurePronunciationSupported(lang) {
+  return AZURE_PRON_LANGS.has(lang);
+}
+
+// PCM WAV recording helpers (16kHz mono 16-bit for Azure)
+function createWavFromPcm(pcmSamples, sampleRate) {
+  const numSamples = pcmSamples.length;
+  const bytesPerSample = 2;
+  const dataSize = numSamples * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // WAV header
+  const writeString = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true); // chunk size
+  view.setUint16(20, 1, true);  // PCM
+  view.setUint16(22, 1, true);  // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true); // bits per sample
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // Convert Float32 to Int16
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    let s = Math.max(-1, Math.min(1, pcmSamples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    offset += 2;
+  }
+  return buffer;
+}
+
+function downsampleBuffer(buffer, inputRate, outputRate) {
+  if (inputRate === outputRate) return buffer;
+  const ratio = inputRate / outputRate;
+  const newLength = Math.round(buffer.length / ratio);
+  const result = new Float32Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    const idx = i * ratio;
+    const low = Math.floor(idx);
+    const high = Math.min(low + 1, buffer.length - 1);
+    const frac = idx - low;
+    result[i] = buffer[low] * (1 - frac) + buffer[high] * frac;
+  }
+  return result;
+}
+
+async function sendAudioToAzure(pcmChunks, inputSampleRate, referenceText, language) {
+  // Combine all PCM chunks
+  let totalLength = 0;
+  for (const chunk of pcmChunks) totalLength += chunk.length;
+  const combined = new Float32Array(totalLength);
+  let off = 0;
+  for (const chunk of pcmChunks) { combined.set(chunk, off); off += chunk.length; }
+
+  // Downsample to 16kHz
+  const downsampled = downsampleBuffer(combined, inputSampleRate, 16000);
+  const wavBuffer = createWavFromPcm(downsampled, 16000);
+
+  // Base64 encode
+  const uint8 = new Uint8Array(wavBuffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < uint8.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, uint8.subarray(i, i + chunkSize));
+  }
+  const base64Audio = btoa(binary);
+
+  const res = await fetch('/api/pronunciation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ referenceText, language, audio: base64Audio })
+  });
+
+  if (res.status === 401) { showLoginScreen(); throw new Error('Unauthorized'); }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Azure API error');
+  return data;
+}
 
 function openPronunciationTrainer(btn) {
   const card = btn.closest('.result-card');
@@ -3097,6 +3208,11 @@ function cleanupPronunciationAudio() {
     try { pronunciationMediaRecorder.stop(); } catch(e) {}
   }
   pronunciationMediaRecorder = null;
+  if (pronunciationScriptNode) {
+    try { pronunciationScriptNode.disconnect(); } catch(e) {}
+    pronunciationScriptNode = null;
+  }
+  pronunciationPcmChunks = [];
   if (pronunciationMicStream) {
     pronunciationMicStream.getTracks().forEach(t => t.stop());
     pronunciationMicStream = null;
@@ -3193,9 +3309,11 @@ async function togglePronunciationRecording() {
   const countdownEl = document.getElementById('pronunciationCountdown');
 
   if (pronunciationRecording) {
-    if (pronunciationRecognition) pronunciationRecognition.stop();
-    if (pronunciationMediaRecorder && pronunciationMediaRecorder.state === 'recording') {
-      pronunciationMediaRecorder.stop();
+    if (pronunciationRecognition) {
+      pronunciationRecognition.stop(); // triggers onend → finishRecording
+    } else if (pronunciationFinishFn) {
+      // Timer-based Azure-only mode: finish immediately
+      pronunciationFinishFn();
     }
     return;
   }
@@ -3264,8 +3382,8 @@ async function togglePronunciationRecording() {
         const blob = new Blob(audioChunks, { type: 'audio/webm' });
         pronunciationAudioUrl = URL.createObjectURL(blob);
       }
-      // Stop mic stream tracks
-      if (pronunciationMicStream) {
+      // Stop mic stream tracks (only if Azure PCM isn't using it)
+      if (pronunciationMicStream && !pronunciationScriptNode) {
         pronunciationMicStream.getTracks().forEach(t => t.stop());
         pronunciationMicStream = null;
       }
@@ -3275,6 +3393,26 @@ async function togglePronunciationRecording() {
     // MediaRecorder not supported — continue without audio recording
   }
 
+  // Start PCM capture for Azure Pronunciation Assessment (if supported)
+  const useAzure = isAzurePronunciationSupported(pronunciationTargetLang);
+  if (useAzure) {
+    pronunciationPcmChunks = [];
+    try {
+      pronunciationAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = pronunciationAudioCtx.createMediaStreamSource(pronunciationMicStream);
+      const bufferSize = 4096;
+      pronunciationScriptNode = pronunciationAudioCtx.createScriptProcessor(bufferSize, 1, 1);
+      pronunciationScriptNode.onaudioprocess = (e) => {
+        const data = e.inputBuffer.getChannelData(0);
+        pronunciationPcmChunks.push(new Float32Array(data));
+      };
+      source.connect(pronunciationScriptNode);
+      pronunciationScriptNode.connect(pronunciationAudioCtx.destination);
+    } catch(e) {
+      console.warn('PCM capture failed:', e);
+    }
+  }
+
   // Start SpeechRecognition
   if (pronunciationRecognition) {
     try { pronunciationRecognition.abort(); } catch(e) {}
@@ -3282,12 +3420,13 @@ async function togglePronunciationRecording() {
   }
 
   pronunciationRecognition = getSpeechRecognition();
-  if (!pronunciationRecognition) {
+
+  // If no SpeechRecognition and no Azure — cannot proceed
+  if (!pronunciationRecognition && !useAzure) {
     if (pronunciationMediaRecorder && pronunciationMediaRecorder.state === 'recording') pronunciationMediaRecorder.stop();
     return;
   }
 
-  pronunciationRecognition.lang = pronunciationTargetLang;
   pronunciationRecording = true;
   mic.classList.add('recording');
   status.textContent = 'Говорите...';
@@ -3297,21 +3436,9 @@ async function togglePronunciationRecording() {
   let totalConfidence = 0;
   let confidenceCount = 0;
 
-  pronunciationRecognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        finalText += e.results[i][0].transcript;
-        totalConfidence += e.results[i][0].confidence || 0;
-        confidenceCount++;
-      } else {
-        interim += e.results[i][0].transcript;
-      }
-    }
-    status.textContent = finalText + interim || 'Говорите...';
-  };
-
-  pronunciationRecognition.onend = () => {
+  // Shared function for when recording finishes
+  const finishRecording = () => {
+    pronunciationFinishFn = null;
     pronunciationRecording = false;
     mic.classList.remove('recording');
     status.classList.remove('active');
@@ -3321,32 +3448,88 @@ async function togglePronunciationRecording() {
       pronunciationMediaRecorder.stop();
     }
 
-    if (finalText.trim()) {
+    // Stop PCM capture
+    const capturedPcm = pronunciationPcmChunks.slice();
+    const pcmSampleRate = pronunciationAudioCtx ? pronunciationAudioCtx.sampleRate : 44100;
+    if (pronunciationScriptNode) {
+      try { pronunciationScriptNode.disconnect(); } catch(e) {}
+      pronunciationScriptNode = null;
+    }
+    // Now stop mic stream
+    if (pronunciationMicStream) {
+      pronunciationMicStream.getTracks().forEach(t => t.stop());
+      pronunciationMicStream = null;
+    }
+
+    if (finalText.trim() || (useAzure && capturedPcm.length > 0)) {
       pronunciationSpokenText = finalText.trim();
       pronunciationConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 0;
       status.textContent = 'Оценка произношения...';
       status.classList.add('active');
-      evaluatePronunciation(pronunciationTargetText, pronunciationSpokenText, pronunciationConfidence);
+
+      if (useAzure && capturedPcm.length > 0) {
+        evaluateWithAzure(capturedPcm, pcmSampleRate, pronunciationTargetText, pronunciationTargetLang, pronunciationSpokenText, pronunciationConfidence);
+      } else {
+        evaluatePronunciation(pronunciationTargetText, pronunciationSpokenText, pronunciationConfidence);
+      }
     } else {
       status.textContent = 'Речь не распознана. Попробуйте ещё раз';
     }
   };
+  pronunciationFinishFn = finishRecording;
 
-  pronunciationRecognition.onerror = (e) => {
-    pronunciationRecording = false;
-    mic.classList.remove('recording');
-    status.classList.remove('active');
-    if (pronunciationMediaRecorder && pronunciationMediaRecorder.state === 'recording') pronunciationMediaRecorder.stop();
-    if (e.error === 'not-allowed') {
-      status.textContent = 'Нет доступа к микрофону';
-    } else if (e.error === 'no-speech') {
-      status.textContent = 'Речь не обнаружена. Попробуйте ещё раз';
-    } else {
-      status.textContent = 'Ошибка: ' + e.error;
-    }
-  };
+  if (pronunciationRecognition) {
+    pronunciationRecognition.lang = pronunciationTargetLang;
 
-  pronunciationRecognition.start();
+    pronunciationRecognition.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finalText += e.results[i][0].transcript;
+          totalConfidence += e.results[i][0].confidence || 0;
+          confidenceCount++;
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      status.textContent = finalText + interim || 'Говорите...';
+    };
+
+    pronunciationRecognition.onend = finishRecording;
+
+    pronunciationRecognition.onerror = (e) => {
+      if (e.error === 'not-allowed') {
+        pronunciationRecording = false;
+        mic.classList.remove('recording');
+        status.classList.remove('active');
+        if (pronunciationMediaRecorder && pronunciationMediaRecorder.state === 'recording') pronunciationMediaRecorder.stop();
+        if (pronunciationScriptNode) { try { pronunciationScriptNode.disconnect(); } catch(ex) {} pronunciationScriptNode = null; }
+        if (pronunciationMicStream) { pronunciationMicStream.getTracks().forEach(t => t.stop()); pronunciationMicStream = null; }
+        status.textContent = 'Нет доступа к микрофону';
+        return;
+      }
+      // For no-speech and other errors: if Azure is available, still try to assess
+      if (useAzure && pronunciationPcmChunks.length > 0) {
+        finishRecording();
+      } else {
+        pronunciationRecording = false;
+        mic.classList.remove('recording');
+        status.classList.remove('active');
+        if (pronunciationMediaRecorder && pronunciationMediaRecorder.state === 'recording') pronunciationMediaRecorder.stop();
+        if (pronunciationScriptNode) { try { pronunciationScriptNode.disconnect(); } catch(ex) {} pronunciationScriptNode = null; }
+        if (pronunciationMicStream) { pronunciationMicStream.getTracks().forEach(t => t.stop()); pronunciationMicStream = null; }
+        status.textContent = e.error === 'no-speech' ? 'Речь не обнаружена. Попробуйте ещё раз' : 'Ошибка: ' + e.error;
+      }
+    };
+
+    pronunciationRecognition.start();
+  } else {
+    // No SpeechRecognition but Azure is available — use timer-based recording
+    status.textContent = 'Говорите... (запись 5 сек)';
+    setTimeout(() => {
+      if (pronunciationRecording) finishRecording();
+    }, 5000);
+  }
 }
 
 function normalizeForComparison(text) {
@@ -3360,6 +3543,212 @@ function getPronunciationLangName() {
     }
   }
   return 'this language';
+}
+
+async function evaluateWithAzure(pcmChunks, sampleRate, targetText, targetLang, spokenText, confidence) {
+  try {
+    const azureResult = await sendAudioToAzure(pcmChunks, sampleRate, targetText, targetLang);
+
+    if (azureResult.RecognitionStatus !== 'Success' || !azureResult.NBest || !azureResult.NBest.length) {
+      // Azure didn't recognize speech — fall back to Gemini
+      if (spokenText) {
+        evaluatePronunciation(targetText, spokenText, confidence);
+      } else {
+        document.getElementById('pronunciationStatus').textContent = 'Речь не распознана. Попробуйте ещё раз';
+        document.getElementById('pronunciationStatus').classList.remove('active');
+      }
+      return;
+    }
+
+    const best = azureResult.NBest[0];
+    const azureData = {
+      score: Math.round(best.PronScore || 0),
+      accuracyScore: Math.round(best.AccuracyScore || 0),
+      fluencyScore: Math.round(best.FluencyScore || 0),
+      completenessScore: Math.round(best.CompletenessScore || 0),
+      prosodyScore: best.ProsodyScore ? Math.round(best.ProsodyScore) : null,
+      recognizedText: best.Display || best.Lexical || '',
+      words: (best.Words || []).map(w => ({
+        word: w.Word,
+        accuracy: Math.round(w.AccuracyScore || 0),
+        errorType: w.ErrorType || 'None',
+        phonemes: (w.Phonemes || []).map(p => ({
+          phoneme: p.Phoneme,
+          accuracy: Math.round(p.AccuracyScore || 0)
+        }))
+      }))
+    };
+
+    // Render Azure results immediately
+    renderAzureResult(azureData);
+
+    // Then get Gemini tips in background
+    getGeminiTipsForAzure(targetText, azureData);
+
+  } catch(e) {
+    console.warn('Azure assessment failed, falling back to Gemini:', e);
+    if (spokenText) {
+      evaluatePronunciation(targetText, spokenText, confidence);
+    } else {
+      document.getElementById('pronunciationStatus').textContent = 'Ошибка оценки. Попробуйте ещё раз';
+      document.getElementById('pronunciationStatus').classList.remove('active');
+    }
+  }
+}
+
+function renderAzureResult(data) {
+  const resultEl = document.getElementById('pronunciationResult');
+  const scoreContainer = document.getElementById('pronunciationScoreContainer');
+  const wordsEl = document.getElementById('pronunciationWords');
+  const actionsEl = document.getElementById('pronunciationActions');
+  const tipsEl = document.getElementById('pronunciationTips');
+  const playbackEl = document.getElementById('pronunciationPlayback');
+  const status = document.getElementById('pronunciationStatus');
+
+  const score = Math.max(0, Math.min(100, data.score));
+  const color = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#ef4444';
+  const label = score >= 90 ? 'Отлично!' : score >= 75 ? 'Хорошо!' : score >= 50 ? 'Неплохо' : 'Нужно потренироваться';
+
+  // SVG ring
+  const circumference = 2 * Math.PI * 30;
+  const offset = circumference - (score / 100) * circumference;
+
+  let scoreHtml =
+    '<div class="pronunciation-score-ring">' +
+      '<svg viewBox="0 0 72 72">' +
+        '<circle class="score-bg" cx="36" cy="36" r="30"/>' +
+        '<circle class="score-fg" cx="36" cy="36" r="30" stroke="' + color + '" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '"/>' +
+      '</svg>' +
+      '<div class="pronunciation-score-value" style="color:' + color + '">' + score + '%</div>' +
+    '</div>' +
+    '<div class="pronunciation-score-label" style="color:' + color + '">' + label + '</div>';
+
+  // Sub-scores
+  scoreHtml += '<div class="azure-subscores">';
+  scoreHtml += '<div class="azure-subscore"><span class="azure-subscore-val">' + data.accuracyScore + '</span><span class="azure-subscore-lbl">Точность</span></div>';
+  scoreHtml += '<div class="azure-subscore"><span class="azure-subscore-val">' + data.fluencyScore + '</span><span class="azure-subscore-lbl">Беглость</span></div>';
+  scoreHtml += '<div class="azure-subscore"><span class="azure-subscore-val">' + data.completenessScore + '</span><span class="azure-subscore-lbl">Полнота</span></div>';
+  if (data.prosodyScore !== null) {
+    scoreHtml += '<div class="azure-subscore"><span class="azure-subscore-val">' + data.prosodyScore + '</span><span class="azure-subscore-lbl">Просодия</span></div>';
+  }
+  scoreHtml += '</div>';
+  scoreContainer.innerHTML = scoreHtml;
+
+  // Word-by-word with phonemes
+  if (data.words && data.words.length > 0) {
+    let wordsHtml = '';
+    data.words.forEach(w => {
+      const isOk = w.errorType === 'None' && w.accuracy >= 60;
+      const cls = w.errorType === 'Omission' ? 'omitted' : w.errorType === 'Mispronunciation' ? 'mispronounced' : isOk ? 'correct' : 'wrong';
+      const errorLabels = { Mispronunciation: 'ошибка', Omission: 'пропущено', Insertion: 'лишнее' };
+      const errorLabel = errorLabels[w.errorType] || '';
+
+      wordsHtml += '<span class="pronunciation-word ' + cls + '" title="Точность: ' + w.accuracy + '%' + (errorLabel ? ' (' + errorLabel + ')' : '') + '">' + w.word;
+      if (w.accuracy < 100 && w.errorType !== 'Omission') {
+        wordsHtml += '<sub class="word-accuracy">' + w.accuracy + '</sub>';
+      }
+      wordsHtml += '</span> ';
+    });
+
+    // Phoneme details for mispronounced words
+    const badWords = data.words.filter(w => w.errorType !== 'None' || w.accuracy < 70);
+    if (badWords.length > 0) {
+      wordsHtml += '<div class="phoneme-details">';
+      badWords.forEach(w => {
+        if (w.errorType === 'Omission') {
+          wordsHtml += '<div class="phoneme-row"><span class="phoneme-word">' + w.word + '</span>: <span style="color:#dc2626">пропущено</span></div>';
+          return;
+        }
+        if (w.errorType === 'Insertion') {
+          wordsHtml += '<div class="phoneme-row"><span class="phoneme-word">' + w.word + '</span>: <span style="color:#dc2626">лишнее слово</span></div>';
+          return;
+        }
+        if (w.phonemes && w.phonemes.length > 0) {
+          wordsHtml += '<div class="phoneme-row"><span class="phoneme-word">' + w.word + '</span>: ';
+          w.phonemes.forEach(p => {
+            const pColor = p.accuracy >= 80 ? '#10B981' : p.accuracy >= 50 ? '#F59E0B' : '#ef4444';
+            wordsHtml += '<span class="phoneme-chip" style="background:' + pColor + '22;color:' + pColor + ';border:1px solid ' + pColor + '44">' + p.phoneme + ' <small>' + p.accuracy + '</small></span> ';
+          });
+          wordsHtml += '</div>';
+        }
+      });
+      wordsHtml += '</div>';
+    }
+    wordsEl.innerHTML = wordsHtml;
+  }
+
+  // Playback
+  let playbackHtml =
+    '<button class="pronunciation-play-btn correct-play" onclick="playTargetPhraseAtSpeed()">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>' +
+      'Правильное' +
+    '</button>' +
+    '<span class="pronunciation-vs">vs</span>';
+  if (pronunciationAudioUrl) {
+    playbackHtml +=
+      '<button class="pronunciation-play-btn my-play" onclick="playMyRecording()">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>' +
+        'Моя запись' +
+      '</button>';
+  } else {
+    playbackHtml += '<span style="font-size:12px;color:var(--muted)">Запись недоступна</span>';
+  }
+  playbackEl.innerHTML = playbackHtml;
+
+  // Tips placeholder — will be filled by Gemini
+  tipsEl.innerHTML = '<span style="color:var(--muted);font-size:13px">Загрузка советов...</span>';
+  tipsEl.classList.add('visible');
+
+  // Action buttons
+  actionsEl.innerHTML =
+    '<button class="pronunciation-action-btn primary" onclick="retryPronunciation()">' +
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
+      'Ещё раз' +
+    '</button>';
+
+  status.textContent = '';
+  status.classList.remove('active');
+  resultEl.classList.add('visible');
+}
+
+async function getGeminiTipsForAzure(targetText, azureData) {
+  const tipsEl = document.getElementById('pronunciationTips');
+  const langName = getPronunciationLangName();
+
+  // Build a concise summary for Gemini
+  const wordsSummary = azureData.words.map(w => {
+    let s = w.word + ' (точность:' + w.accuracy + '%';
+    if (w.errorType !== 'None') s += ', ошибка:' + w.errorType;
+    if (w.phonemes && w.phonemes.length > 0) {
+      const badPhonemes = w.phonemes.filter(p => p.accuracy < 70);
+      if (badPhonemes.length > 0) {
+        s += ', проблемные фонемы: ' + badPhonemes.map(p => p.phoneme + '=' + p.accuracy + '%').join(', ');
+      }
+    }
+    s += ')';
+    return s;
+  }).join('; ');
+
+  const systemPrompt = 'Ты — преподаватель ' + langName + ' языка для русскоговорящих студентов. ' +
+    'Тебе даны результаты оценки произношения от Azure Speech API с оценками по фонемам. ' +
+    'Дай КРАТКИЙ полезный совет на русском языке (3-4 предложения): ' +
+    'что конкретно нужно исправить, как правильно произносить проблемные звуки (с примерами из русского), ' +
+    'похвали если результат хороший. Используй IPA транскрипцию где уместно. ' +
+    'Отвечай ТОЛЬКО текст совета, без JSON, без markdown.';
+
+  const userContent = 'Целевая фраза: "' + targetText + '"\n' +
+    'Общий балл: ' + azureData.score + '/100\n' +
+    'Точность: ' + azureData.accuracyScore + ', Беглость: ' + azureData.fluencyScore + ', Полнота: ' + azureData.completenessScore + '\n' +
+    'Слова: ' + wordsSummary;
+
+  try {
+    const tips = await callTranslate(systemPrompt, userContent, 512);
+    tipsEl.innerHTML = tips.replace(/\n/g, '<br>');
+  } catch(e) {
+    console.warn('Gemini tips failed:', e);
+    tipsEl.innerHTML = '';
+    tipsEl.classList.remove('visible');
+  }
 }
 
 async function evaluatePronunciation(target, spoken, confidence) {
